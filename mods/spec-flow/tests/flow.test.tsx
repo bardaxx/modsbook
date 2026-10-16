@@ -161,3 +161,58 @@ test('state kept from an older version draws no undefined cap', async ($, on) =>
   expect(await ui.find({ type: 'Text', text: /none implementing/ })).toBeDefined()
   await ui.unmount()
 })
+
+test('a digit lays out what an agent did: its tools, their errors and what it said', async ($, on) => {
+  on('agent.spawn', () => ({ model: 'm', agentId: 'a1' }))
+  on('ui.open', () => ({ value: { isPlaced: true as const } }))
+  on('tool.call', (_$, e) =>
+    e.tool === 'Bash' && e.command === 'npm test'
+      ? { isError: true as const, result: 'exit 1', text: 'Error: 2 tests failed\nat foo.test.ts' }
+      : { result: { stdout: '', stderr: '', interrupted: false } as never },
+  )
+  on('turn.step', async function* (_$, e) {
+    return {
+      turnId: e.turnId,
+      index: e.index,
+      answer: 'The lint passes; now the tests.',
+      toolUses: [],
+      stopReason: 'tool_use' as const,
+      usage: null,
+    }
+  })
+
+  await $.agent.spawn({
+    tool_use_id: 'toolu_1',
+    prompt: 'Build ticket #241 with tdd.',
+    description: 'Implement #241 popover',
+    subagentType: 'general-purpose',
+    provider: { plugin: 'test', tier: 'user' },
+    parentModel: 'claude-opus-5-5',
+    background: true,
+    fork: false,
+  })
+  // A subagent's call carries its loop's id, which the typed call leaves out.
+  const lint = { tool: 'Bash' as const, command: 'mise run lint', description: 'Run the linter', agentId: 'a1' }
+  await $.tool.call(lint)
+  const step = $.turn.step({ turnId: 't1', index: 1, model: 'm', messageCount: 3, agentId: 'a1' })
+  for await (const _ of step);
+  const tests = { tool: 'Bash' as const, command: 'npm test', agentId: 'a1' }
+  await $.tool.call(tests)
+
+  for (const surface of ['terminal', 'desktop'] as const) {
+    const ui = await $.ui.mount({ plugin: 'spec-flow', surface, ...PANE })
+    expect(await ui.find({ type: 'Text', text: /2 tools/ }), '2 tools').toBeDefined()
+    expect(await ui.find({ type: 'Text', text: /now the tests/ }), 'no steps before focus').toBeUndefined()
+
+    await ui.press({ key: 'focus-a1' })
+    expect(await ui.find({ type: 'Text', text: /Run the linter/ }), 'the passed step').toBeDefined()
+    expect(await ui.find({ type: 'Text', text: /now the tests/ }), 'what it said').toBeDefined()
+    expect(await ui.find({ type: 'Text', text: /2 tests failed/ }), 'the error line').toBeDefined()
+    expect(await ui.find({ type: 'Text', text: /foo\.test/ }), 'first line only').toBeUndefined()
+    expect(await ui.find({ type: 'Button', key: 'view' }), 'open transcript').toBeDefined()
+
+    await ui.press({ key: 'unfocus' })
+    expect(await ui.find({ type: 'Text', text: /now the tests/ }), 'closed').toBeUndefined()
+    await ui.unmount()
+  }
+})

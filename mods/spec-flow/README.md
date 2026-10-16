@@ -33,6 +33,7 @@ It is built around the idea-to-ship spine of [AI Hero's skills](https://www.aihe
 
 - **flow**: the spec being followed, its integration PR with its CI state, and the stage. A skill that runs sets the stage; a spec followed with `/flow spec <n>` takes it from its tickets and PR.
 - **agents**: each subagent this session spawns, with its role (implementer, merger, reviewer, explorer, read from its description), the tickets it names, the tool it is running now and how long it has run. The slot meter counts running implementers against a cap: the `slots` setting, or else the cap the running implement skill states ("in **3 slots** at most"). With neither, it counts them with no cap.
+- **steps**: press an agent's digit (`1`–`9`) and its card lays out what it did, newest last: each tool it ran with how long it took, ✗ and the error's first line where one failed, and the lines it wrote between tools (`› The lint passes; now the tests.`). `o` puts that agent's whole transcript in the main view, as the tasks list does, and back; `x` closes the card.
 - **tickets**: the spec's sub-issues as one bar split by state, a legend, and one row per ticket: closed, merged into the integration branch, being merged, implemented and waiting for a merge, in progress, ready (on the frontier), or blocked by the tickets it waits for.
 
 ## Requirements
@@ -74,7 +75,7 @@ claude --plugin-dir /path/to/modsbook/mods/spec-flow
 
 Change it in `/config`, where it is one of the mod's rows.
 
-In the pane, `r` refreshes and `c` clears. The pane opens by itself when a flow skill runs, as a sidebar from 144 terminal columns; below that, open it with `/flow`. It also refreshes every minute and whenever an implementer or a merger finishes.
+In the pane, `r` refreshes, `c` clears, a digit focuses an agent's steps, `o` opens its transcript and `x` closes them. The pane opens by itself when a flow skill runs, as a sidebar from 144 terminal columns; below that, open it with `/flow`. It also refreshes every minute and whenever an implementer or a merger finishes.
 
 The spec is picked up without a command too: from the argument of `/implement-spec` or `/to-tickets`, or from the issue `/to-spec` creates.
 
@@ -84,6 +85,7 @@ The spec is picked up without a command too: from the argument of `/implement-sp
 | --- | --- |
 | stage | the skills that run (`skill.prompt`, the Skill tool, a typed `/skill`), else the tickets and the PR |
 | agents | `agent.spawn`, each subagent's `tool.call`, and its `turn.complete` |
+| steps | each subagent's `tool.call` and its result, and the text of its `turn.step`s |
 | tickets | `gh api …/issues/<spec>/sub_issues`, and `…/dependencies/blocked_by` where the body names no blockers |
 | merged | the merge commits of the spec's PR that name a ticket (`Merge #239: …`, `feat: merge … (#238)`) |
 | PR and CI | the PR whose title or body names `#<spec>`, and its `statusCheckRollup` |

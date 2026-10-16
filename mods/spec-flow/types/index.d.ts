@@ -2,6 +2,18 @@ export type Stage = 'grill' | 'spec' | 'tickets' | 'implement' | 'review' | 'shi
 
 export type Role = 'implementer' | 'merger' | 'reviewer' | 'explorer' | 'agent'
 
+/** One thing an agent did: a tool it ran, or a line it wrote between tools. */
+export type Step = {
+  kind: 'tool' | 'say'
+  id: string
+  text: string
+  status: 'running' | 'ok' | 'error'
+  at: number
+  ms?: number
+  /** The first line of the error the tool answered. */
+  error?: string
+}
+
 export type AgentRow = {
   id: string
   role: Role
@@ -13,6 +25,10 @@ export type AgentRow = {
   report: string
   startedAt: number
   endedAt?: number
+  /** The newest steps, oldest first. */
+  steps: Step[]
+  tools: number
+  errors: number
 }
 
 export type Ticket = {
@@ -41,6 +57,8 @@ export type Flow = {
   slotCap: number | null
   tickets: Ticket[]
   agents: AgentRow[]
+  /** The agent whose steps the pane lays out in full. */
+  focus: string | null
   error: string | null
   refreshedAt: number | null
 }

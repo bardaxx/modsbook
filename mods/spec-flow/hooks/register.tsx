@@ -1,11 +1,14 @@
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register, RenderChildren } from 'claude-code'
 
-import type { AgentRow, Flow, IntegrationPr, Role, Stage, Ticket } from '../types'
+import type { AgentRow, Flow, IntegrationPr, Role, Stage, Step, Ticket } from '../types'
 
 const PANE = 'spec-flow'
 const TITLE = 'Flow'
 const POLL_MS = 60_000
+// The steps each agent keeps, and how many the focused card lays out.
+const STEPS_KEPT = 40
+const STEPS_SHOWN = 14
 
 // The deck palette: muted pills on a dark track, dark ink on the pills.
 const INK = '#151515'
@@ -65,13 +68,28 @@ const EMPTY: Flow = {
   slotCap: null,
   tickets: [],
   agents: [],
+  focus: null,
   error: null,
   refreshedAt: null,
 }
 const flow = atom({ plugin: 'spec-flow', key: 'flow' } as const, EMPTY)
 
+// A row an older version kept lacks the step log.
+const upgrade = (a: AgentRow): AgentRow => ({ ...a, steps: a.steps ?? [], tools: a.tools ?? 0, errors: a.errors ?? 0 })
+
 // State a session kept from an older version of the mod lacks the fields added since.
-const current = async ($: EngineInterface): Promise<Flow> => ({ ...EMPTY, ...(await read($, flow)) })
+const current = async ($: EngineInterface): Promise<Flow> => {
+  const f = { ...EMPTY, ...(await read($, flow)) }
+  return { ...f, agents: f.agents.map(upgrade) }
+}
+
+// Changes one agent's row, if the pane knows the agent.
+const withAgent = (f: Flow, id: string, change: (a: AgentRow) => AgentRow): Flow =>
+  f.agents.some(a => a.id === id)
+    ? { ...f, agents: f.agents.map(a => (a.id === id ? change(upgrade(a)) : a)) }
+    : f
+
+const firstLine = (text: string) => text.split('\n').find(line => line.trim())?.trim() ?? ''
 
 // The idea-to-ship spine (aihero.dev/skills) and the skills that move it.
 const STAGES: { stage: Stage; label: string }[] = [
@@ -325,6 +343,12 @@ const quietly = async (work: () => Promise<unknown>) => {
   }
 }
 
+// The agent's whole transcript in the main view, as the tasks list switches to it.
+const openView = async ($: EngineInterface, view: { agentId?: string }) => {
+  const moved = await $.ui.view(view)
+  if (moved.deny) $.ui.toast(`Cannot open the transcript: ${moved.deny}`)
+}
+
 const enterSkill = async ($: EngineInterface, skill: string, args: string) => {
   const name = skill.replace(/^.*:/, '')
   const stage = STAGE_OF[name]
@@ -404,6 +428,9 @@ export const register: Register = (on, options) => {
         activity: 'starting',
         report: '',
         startedAt: Date.now(),
+        steps: [],
+        tools: 0,
+        errors: 0,
       }
       await update($, flow, f => ({ ...f, agents: [...f.agents.filter(a => a.id !== id), row].slice(-30) }))
     })
@@ -433,19 +460,63 @@ export const register: Register = (on, options) => {
     return done
   })
 
+  // What an agent writes between its tools: why it runs the next one, what it found.
+  on('turn.step', async function* ($, e, next) {
+    const step = yield* next(e)
+    const id = e.agentId
+    const said = firstLine(step.answer)
+    if (id && said) {
+      const row: Step = {
+        kind: 'say',
+        id: `say-${step.turnId}-${step.index}`,
+        text: said.slice(0, 300),
+        status: 'ok',
+        at: Date.now(),
+      }
+      await quietly(() =>
+        update($, flow, f => withAgent(f, id, a => ({ ...a, steps: [...a.steps, row].slice(-STEPS_KEPT) }))),
+      )
+    }
+    return step
+  })
+
+  let calls = 0
   on('tool.call', async ($, e, next) => {
     const id = e.agentId
+    const stepId = e.tool_use_id ?? `call-${++calls}`
+    const at = Date.now()
     if (id) {
       const activity = activityOf(e)
+      const step: Step = { kind: 'tool', id: stepId, text: activity, status: 'running', at }
       await quietly(() =>
         update($, flow, f =>
-          f.agents.some(a => a.id === id)
-            ? { ...f, agents: f.agents.map(a => (a.id === id ? { ...a, activity } : a)) }
-            : f,
+          withAgent(f, id, a => ({
+            ...a,
+            activity,
+            tools: a.tools + 1,
+            steps: [...a.steps, step].slice(-STEPS_KEPT),
+          })),
         ),
       )
     }
     const ran = await next(e)
+    if (id) {
+      const failure = 'deny' in ran && ran.deny ? ran.deny : ran.isError ? (ran.text ?? 'error') : null
+      const error = failure === null ? undefined : firstLine(failure).slice(0, 200)
+      await quietly(() =>
+        update($, flow, f =>
+          withAgent(f, id, a => ({
+            ...a,
+            errors: a.errors + (error === undefined ? 0 : 1),
+            steps: a.steps.map(s =>
+              s.id === stepId
+                ? { ...s, status: error === undefined ? ('ok' as const) : ('error' as const), ms: Date.now() - at, error }
+                : s,
+            ),
+          })),
+        ),
+      )
+    }
     if (e.tool === 'Skill' && !id) await quietly(() => enterSkill($, e.skill, e.args ?? ''))
     if (e.tool === 'Bash')
       await quietly(async () => {
@@ -558,21 +629,37 @@ export const register: Register = (on, options) => {
       )
     }
 
+    // A digit focuses an agent: its steps laid out in full below the list.
+    const listed = [...running, ...finished].slice(0, 9)
+    const focused = f.agents.find(a => a.id === f.focus)
+    const toggleFocus = (id: string) => update($, flow, g => ({ ...g, focus: g.focus === id ? null : id }))
+    const counts = (a: AgentRow) => (
+      <Text dimColor>
+        {a.tools} tools{a.errors ? <Text color={STATE_COLOR.failed}> · {a.errors} ✗</Text> : ''}
+      </Text>
+    )
+
     const agentRow = (a: AgentRow) => {
       const color = ROLE_COLOR[a.role]
       const refs = a.tickets.map(n => `#${n}`).join(' ')
       const age = since(a.startedAt, a.endedAt ?? now)
       const label = ` ${a.activity.slice(0, inner - 3)}${a.activity.length > inner - 3 ? '…' : ''} `
+      const digit = String(listed.indexOf(a) + 1)
+      const isFocused = a.id === f.focus
       if (a.status !== 'running') {
         return (
           <Box key={`agent-${a.id}`} flexDirection="row" justifyContent="space-between">
-            <Text dimColor wrap="truncate-end">
-              <Text color={a.status === 'done' ? STATE_COLOR.done : STATE_COLOR.failed}>
-                {a.status === 'done' ? '✓' : '✗'}{' '}
-              </Text>
-              {a.role}
-              {refs ? ` ${refs}` : ''} · {a.report || a.description}
-            </Text>
+            <Box flexShrink={1}>
+              <Button key={`focus-${a.id}`} plain hotkey={digit} onPress={() => toggleFocus(a.id)}>
+                <Text dimColor={!isFocused} bold={isFocused} wrap="truncate-end">
+                  <Text color={a.status === 'done' ? STATE_COLOR.done : STATE_COLOR.failed}>
+                    {a.status === 'done' ? '✓' : '✗'}{' '}
+                  </Text>
+                  {a.role}
+                  {refs ? ` ${refs}` : ''} · {a.report || a.description}
+                </Text>
+              </Button>
+            </Box>
             <Text dimColor> {age}</Text>
           </Box>
         )
@@ -580,13 +667,20 @@ export const register: Register = (on, options) => {
       return (
         <Box key={`agent-${a.id}`} flexDirection="column" marginBottom={1}>
           <Box flexDirection="row" justifyContent="space-between">
-            <Text wrap="truncate-end">
-              <Text color={color}>● </Text>
-              <Text bold>{a.role}</Text>
-              {refs ? <Text color={color}> {refs}</Text> : ''}
-              <Text dimColor> · {a.description}</Text>
+            <Box flexShrink={1}>
+              <Button key={`focus-${a.id}`} plain hotkey={digit} onPress={() => toggleFocus(a.id)}>
+                <Text wrap="truncate-end">
+                  <Text color={color}>{isFocused ? '◉ ' : '● '}</Text>
+                  <Text bold>{a.role}</Text>
+                  {refs ? <Text color={color}> {refs}</Text> : ''}
+                  <Text dimColor> · {a.description}</Text>
+                </Text>
+              </Button>
+            </Box>
+            <Text>
+              {counts(a)}
+              <Text dimColor> ↻ {age}</Text>
             </Text>
-            <Text dimColor> ↻ {age}</Text>
           </Box>
           <Text>
             <Text backgroundColor={color} color={INK}>
@@ -594,6 +688,74 @@ export const register: Register = (on, options) => {
             </Text>
             <Text backgroundColor={TRACK}>{' '.repeat(inner - label.length)}</Text>
           </Text>
+        </Box>
+      )
+    }
+
+    const STEP_MARK: Record<Step['status'], { mark: string; color: string }> = {
+      running: { mark: '●', color: ACCENT },
+      ok: { mark: '✓', color: STATE_COLOR.done },
+      error: { mark: '✗', color: STATE_COLOR.failed },
+    }
+    const stepRow = (s: Step) => {
+      if (s.kind === 'say')
+        return (
+          <Text key={`step-${s.id}`} dimColor italic wrap="truncate-end">
+            › {s.text}
+          </Text>
+        )
+      const { mark, color } = STEP_MARK[s.status]
+      return (
+        <Box key={`step-${s.id}`} flexDirection="column">
+          <Box flexDirection="row" justifyContent="space-between">
+            <Text wrap="truncate-end" bold={s.status === 'running'}>
+              <Text color={color}>{mark} </Text>
+              {s.text}
+            </Text>
+            <Text dimColor> {s.status === 'running' ? `↻ ${since(s.at, now)}` : since(s.at, s.at + (s.ms ?? 0))}</Text>
+          </Box>
+          {s.error && (
+            <Text color={STATE_COLOR.failed} dimColor wrap="truncate-end">
+              {'  '}└ {s.error}
+            </Text>
+          )}
+        </Box>
+      )
+    }
+    const isViewed = (a: AgentRow) => e.props.view.agentId === a.id
+    const stepsCard = (a: AgentRow) => {
+      const shown = a.steps.slice(-STEPS_SHOWN)
+      const hidden = a.steps.length - shown.length
+      return (
+        <Box flexDirection="column">
+          {heading(
+            `${a.role}${a.tickets.length ? ` ${a.tickets.map(n => `#${n}`).join(' ')}` : ''}`,
+            <Text>
+              {counts(a)}
+              <Text dimColor> · {since(a.startedAt, a.endedAt ?? now)}</Text>
+            </Text>,
+          )}
+          <Text dimColor wrap="truncate-end">
+            {a.description} · {a.type}
+          </Text>
+          <Text> </Text>
+          {a.steps.length === 0 && <Text dimColor>Nothing yet.</Text>}
+          {hidden > 0 && <Text dimColor>… {hidden} earlier steps in the transcript</Text>}
+          {shown.map(stepRow)}
+          {a.status !== 'running' && a.report && (
+            <Text wrap="truncate-end">
+              <Text color={a.status === 'done' ? STATE_COLOR.done : STATE_COLOR.failed}>⏎ </Text>
+              {a.report}
+            </Text>
+          )}
+          <Box flexDirection="row" columnGap={1} marginTop={1}>
+            {isViewed(a) ? (
+              <Button key="view" label="Main transcript" hotkey="o" onPress={() => openView($, {})} />
+            ) : (
+              <Button key="view" label="Open transcript" hotkey="o" onPress={() => openView($, { agentId: a.id })} />
+            )}
+            <Button key="unfocus" label="Close" hotkey="x" onPress={() => toggleFocus(a.id)} />
+          </Box>
         </Box>
       )
     }
@@ -672,8 +834,11 @@ export const register: Register = (on, options) => {
             {running.length > 0 && <Text> </Text>}
             {running.map(agentRow)}
             {finished.map(agentRow)}
+            {listed.length > 0 && !focused && <Text dimColor>1–{listed.length} shows what an agent did</Text>}
           </Box>,
         )}
+
+        {focused && card('steps', stepsCard(focused))}
 
         {card(
           'tickets',
