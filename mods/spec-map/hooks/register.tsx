@@ -2,10 +2,10 @@ import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register, RenderChildren } from 'claude-code'
 
 import type { AgentRow, Flow, IntegrationPr, Role, Stage, Step, Ticket } from '../types'
-import { header } from './header'
+import { FRAME_MS, header, isDrifting } from './header'
 
 const PANE = 'spec-map'
-const TITLE = 'Flow'
+const TITLE = 'spec-map'
 const POLL_MS = 60_000
 // The steps each agent keeps, and how many the focused card lays out.
 const STEPS_KEPT = 40
@@ -365,6 +365,10 @@ export const register: Register = (on, options) => {
   const configuredCap = typeof options.slots === 'number' && options.slots > 0 ? options.slots : null
 
   on('session.start', async ($, e, next) => {
+    // The header's strip drifts while the mod works: a redraw each frame, and none at rest.
+    $.clock.every(FRAME_MS, () => {
+      if (isDrifting()) $.ui.invalidate('ui.render')
+    })
     await $.command.register({
       name: 'specmap',
       description: 'Show the spec-map pane (/specmap spec <n>, /specmap refresh, /specmap clear)',
@@ -759,7 +763,11 @@ export const register: Register = (on, options) => {
 
     return (
       <Box flexDirection="column">
-        {header({ Box, Text }, PANE, e.props.bodyColumns)}
+        {header({ Box, Text }, PANE, e.props.bodyColumns, {
+          // The stage the spec stands at; the strip drifts while an agent works on it.
+          state: stage ?? 'idle',
+          isLive: f.agents.some(a => a.status === 'running'),
+        })}
         {card(
           'flow',
           <Box flexDirection="column">

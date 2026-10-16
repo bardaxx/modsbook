@@ -4,7 +4,8 @@ import type { EngineInterface, Register, RenderChildren } from 'claude-code'
 import type { Grill, GrillBook, GrillSkill, RoundStep, Step, WayfinderRun } from '../types'
 import { applyReply, dialogRound, firstLine, isWaiting, isWrapDue, lastTurn, markOf, parseRound, plain, settleWrap } from './reply'
 import type { Mark } from './reply'
-import { header } from './header'
+import { FRAME_MS, header, isDrifting } from './header'
+import type { HeaderState } from './header'
 import {
   ACCENT,
   BLUE,
@@ -26,7 +27,7 @@ import {
 } from './spine'
 
 const PANE = 'grill-map'
-const TITLE = 'Grill'
+const TITLE = 'grill-map'
 const GRILLS_KEPT = 8
 const STEPS_KEPT = 200
 
@@ -124,6 +125,16 @@ const addRound = ($: EngineInterface, key: string | undefined, round: RoundStep)
 
 let shownStatus: string | undefined
 
+/** The header's word for the grill shown: grilling while the model works, your turn while a round waits. */
+const headerState = (g: Grill | undefined): HeaderState => {
+  if (!g) return { state: 'idle', isLive: false }
+  if (g.isDone) return { state: 'done', isLive: false }
+  const last = g.steps.filter((s): s is RoundStep => s.kind === 'round').at(-1)
+  const step = lastTurn(g.steps)
+  if ((step?.kind === 'wrap' && step.reply === undefined) || (last && isWaiting(last))) return { state: 'your turn', isLive: false }
+  return { state: 'grilling', isLive: true }
+}
+
 /** The status line while a grill of its own is open; inside a Run, wayfinder-map's carries it. */
 const syncStatus = async ($: EngineInterface) => {
   const run = await runOf($)
@@ -159,6 +170,10 @@ const quietly = async (work: () => Promise<unknown>) => {
 
 export const register: Register = on => {
   on('session.start', async ($, e, next) => {
+    // The header's strip drifts while the mod works: a redraw each frame, and none at rest.
+    $.clock.every(FRAME_MS, () => {
+      if (isDrifting()) $.ui.invalidate('ui.render')
+    })
     await $.command.register({
       name: 'grillmap',
       description: 'Show the grill map pane: the design tree of /grilling, /grill-me and /grill-with-docs (/grillmap clear)',
@@ -326,6 +341,7 @@ export const register: Register = on => {
     const now = Date.now()
     const inner = Math.max(24, e.props.bodyColumns - 4)
     const g = b.grills.find(x => x.id === b.shown) ?? b.grills.at(-1)
+    const state = headerState(g)
 
     const pill = (text: string, bg: string, fg = INK, bold = false) => (
       <Text backgroundColor={bg} color={fg} bold={bold}>
@@ -350,7 +366,7 @@ export const register: Register = on => {
     if (!g)
       return (
         <Box flexDirection="column">
-          {header(el, PANE, e.props.bodyColumns)}
+          {header(el, PANE, e.props.bodyColumns, state)}
           {card(
             'empty',
             <Box flexDirection="column">
@@ -477,7 +493,7 @@ export const register: Register = on => {
 
     return (
       <Box flexDirection="column">
-        {header(el, PANE, e.props.bodyColumns)}
+        {header(el, PANE, e.props.bodyColumns, state)}
         {head}
         {tree}
         <Box flexDirection="row" columnGap={1} paddingX={1}>

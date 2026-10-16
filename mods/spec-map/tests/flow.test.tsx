@@ -68,6 +68,7 @@ test('the pane shows the spec, its tickets and the implementer working on one', 
 
   for (const surface of ['terminal', 'desktop'] as const) {
     const ui = await $.ui.mount({ plugin: 'spec-map', surface, ...PANE })
+    expect(await ui.find({ text: /^MODSBOOK · SPEC-MAP [A-Z ]+$/ }), 'the header names the mod and its stage').toBeDefined()
     expect(await ui.find({ type: 'Text', text: /spec #239/ }), String(/spec #239/)).toBeDefined()
     expect(
       await ui.find({ type: 'Text', text: /^Checks popover$/ }),

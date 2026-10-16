@@ -1,6 +1,6 @@
 {
   "name": "spec-map",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "Side pane for the idea-to-ship flow: stage, spec, tickets and what each agent is doing",
   "author": {
     "name": "bardaxx"

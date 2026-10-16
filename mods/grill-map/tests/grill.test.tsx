@@ -82,6 +82,9 @@ test('a /grill-me round hangs from the spine, the next level waits for the perso
 
     // The newest level is drawn whole.
     await has(/◆ L2 · waiting for you ▾/)
+    // The header names the mod in its color and says whose turn it is; the legend lists the book.
+    await has(/^MODSBOOK · GRILL-MAP YOUR TURN$/)
+    await has(/■ grill-map  ■ wayfinder-map  ■ spec-map/)
     await has(/┃ ◌ Q3 Conflicts/)
     await has(/┃ │ Where does a conflict surface/)
     await has(/┃ │ ➡ Last write wins, with a banner/)

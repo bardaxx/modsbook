@@ -18,7 +18,8 @@ import type {
   Wayfinder,
 } from '../types'
 import { applyReply, dialogRound, firstLine, isWaiting, isWrapDue, lastTurn, markOf, parseRound, plain, settleWrap } from './reply'
-import { header } from './header'
+import { FRAME_MS, header, isDrifting } from './header'
+import type { HeaderState } from './header'
 import {
   cut,
   docTraceOf,
@@ -33,7 +34,7 @@ import {
 } from './spine'
 
 const PANE = 'wayfinder-map'
-const TITLE = 'Wayfinder'
+const TITLE = 'wayfinder-map'
 const POLL_MS = 60_000
 // About 800 KB at worst, of the store's 4 MiB in all.
 const LINES_KEPT = 400
@@ -293,6 +294,16 @@ const fromOld = (r: OldRound): Line => ({
 /** A ticket's Spine, or Charting's for `null`. */
 const linesOf = (lines: Line[], ticket: string | null): Step[] => lines.filter(l => l.ticket === ticket)
 
+/** The header's word: charting or on a claimed ticket while a Run goes, your turn while its round waits. */
+const headerState = (run: Run | null, lines: Line[], hasMap: boolean): HeaderState => {
+  if (!run) return { state: hasMap ? 'mapped' : 'idle', isLive: false }
+  const steps = linesOf(lines, run.ticket?.id ?? null)
+  const last = steps.filter((s): s is RoundStep => s.kind === 'round').at(-1)
+  const step = lastTurn(steps)
+  if ((step?.kind === 'wrap' && step.reply === undefined) || (last && isWaiting(last))) return { state: 'your turn', isLive: false }
+  return { state: run.ticket ? 'claimed' : 'charting', isLive: true }
+}
+
 /**
  * Past the cap, the oldest lookups go first, never a Level or a Wrap-up; past that, the oldest lines
  * of closed tickets, never the open ticket's or Charting's.
@@ -508,6 +519,10 @@ const fetchAnswer = async ($: EngineInterface, id: string) => {
 
 export const register: Register = on => {
   on('session.start', async ($, e, next) => {
+    // The header's strip drifts while the mod works: a redraw each frame, and none at rest.
+    $.clock.every(FRAME_MS, () => {
+      if (isDrifting()) $.ui.invalidate('ui.render')
+    })
     await $.command.register({
       name: 'waymap',
       description: 'Show the wayfinder map pane (/waymap <map>, /waymap refresh, /waymap clear)',
@@ -1092,7 +1107,7 @@ export const register: Register = on => {
 
     return (
       <Box flexDirection="column">
-        {header(el, PANE, e.props.bodyColumns)}
+        {header(el, PANE, e.props.bodyColumns, headerState(run, w.lines, map !== null))}
         {card(
           'map',
           <Box flexDirection="column">

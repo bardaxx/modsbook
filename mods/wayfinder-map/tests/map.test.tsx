@@ -71,6 +71,7 @@ test('the route draws the map as a tree of tickets, with the next one on the fro
   for (const surface of ['vscode', 'mobile'] as const) {
     const ui = await $.ui.mount({ plugin: 'wayfinder-map', surface, ...PANE })
     const has = async (text: RegExp) => expect(await ui.find({ text }), String(text)).toBeDefined()
+    await has(/^MODSBOOK · WAYFINDER-MAP MAPPED$/)
     await has(/map #42/)
     await has(/^Offline sync$/)
     await has(/A spec for offline sync/)
