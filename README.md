@@ -9,6 +9,7 @@ Mods are plugins of function hooks for [Claude Code](https://docs.claude.com/en/
 | Mod | What it does |
 | --- | --- |
 | [spec-flow](mods/spec-flow) | A side pane that follows a spec from idea to merge: the stage, what each subagent is doing, the tickets and the integration PR. |
+| [wayfinder-map](mods/wayfinder-map) | A side pane for `/wayfinder`: the map's route as a tree of decision tickets, the decisions so far, the fog, and each grilling round as a design tree. |
 
 ## Install
 
@@ -45,7 +46,7 @@ mods/<mod>/
   types/index.d.ts                its $.state contract, when it keeps state
   tests/*.test.ts(x)              run by `claude plugin test`
   README.md                       what it does and how to use it
-scripts/check.sh                  validates and tests every mod
+scripts/check.sh                  validates and tests every mod, and checks its version went up
 ```
 
 ## Adding a mod
@@ -53,7 +54,7 @@ scripts/check.sh                  validates and tests every mod
 1. Make the mod in `mods/<mod>/`, laid out as above. A mod written in a Claude Code session (its mods folder) is copied here without `.claude-plugin/types/`, which Claude Code writes at each load.
 2. Add its entry to `.claude-plugin/marketplace.json`: `name` as in its `plugin.json`, `source` `./mods/<mod>`, and a one-line `description`.
 3. Add its row to the table above.
-4. Run `scripts/check.sh`.
+4. Run `scripts/check.sh`. It fails when a mod changed since the branch's upstream (or `BASE=<ref>`) without raising `version` in its `plugin.json`; README and tests changes need no raise.
 
 To try a mod from a clone without installing it:
 
