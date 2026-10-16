@@ -10,6 +10,44 @@ A Claude Code mod of three side panes, one for each stretch of the road the [AI 
 
 Each pane opens with the same header: `SKILLMAPS · <MAP> <STATE>` with the map in its own color, a legend of the maps turned on (a press on one opens it), and a strip of braille dots each map animates its own way: grill-map's flames, wayfinder-map's traveller in the fog, spec-map's conveyor. It moves every frame while the map works and at a slower beat at rest.
 
+In a Claude Code session, a pane docks beside the transcript. Here grill-map follows a `/grill-with-docs`: the first round settled, the lookups and docs it led to, and the next round waiting for your answer. While the model works, the header's flames flicker; while the round waits, they rest, dim.
+
+```text
+╭────────────────────────────────────────────────────┬─ grill-map ──────────────────────────────────────╮
+│ > /grill-with-docs offline sync for the field app  │         SKILLMAPS · GRILL-MAP YOUR TURN          │
+│                                                    │     ■ grill-map  ■ wayfinder-map  ■ spec-map     │
+│ ● Q1 - Storage: … ➡ SQLite, with WAL               │ ⣄⣀⣠⣄⣴⣀⠀⠀⡀⢀⣠⣴⣤⣄⣤⣦⣶⣴⣤⣤⢀⠀⡀⡀⣄⣀⣀⢨⢀⣠⣤⣶⣾⣴⣬⣠⣨⣤⣄⣄⣀⢀⢀⣠⣠⣴⣤⣴ │
+│ ● Q2 - Sync trigger: … ➡ on every change           │                                                  │
+│                                                    │ ╭──────────────────────────────────────────────╮ │
+│ > 1. yes  2. no, every minute                      │ │ ◆ grill-with-docs                       2/3  │ │
+│                                                    │ │ Offline sync for the field app               │ │
+│ ● Read(src/sync/queue.ts)                          │ │                                              │ │
+│   ⎿  Read 182 lines                                │ │ ███████████████████████████████▓▓▓▓▓▓▓▓▓▓▓▓▓ │ │
+│ ● Update(CONTEXT.md)                               │ │ ✓ took 1  ✎ yours 1  ◌ open 1  ⌕ lookups 3   │ │
+│   ⎿  Added 1 line                                  │ ╰──────────────────────────────────────────────╯ │
+│ ● Write(docs/adr/0001-sqlite-on-the-device.md)     │ ╭──────────────────────────────────────────────╮ │
+│   ⎿  Wrote 24 lines                                │ │ Spine                    2 levels · 1 open   │ │
+│                                                    │ │ ◎ started                           6m ago   │ │
+│ ● Q3 - Conflicts: where does a conflict            │ │ ┃ ⌕ agent · Find the current sync code done  │ │
+│   surface to the person, if anywhere at all?       │ │ ┃ ⌕ 2 lookups · queue.ts                     │ │
+│   ➡ Last write wins, with a banner                 │ │ ┃                                            │ │
+│                                                    │ │ ● L1 · 2/2 settled ▸                    4m   │ │
+│                                                    │ │ ┃ ✓ Storage → SQLite, with WAL               │ │
+│                                                    │ │ ┃ ✎ Sync trigger → no, every minute          │ │
+│                                                    │ │ ┃ ≡ CONTEXT.md · Sync Log                    │ │
+│                                                    │ │ ┃ ⚑ ADR 0001 · SQLite on the device          │ │
+│                                                    │ │ ┃                                            │ │
+│                                                    │ │ ◆ L2 · waiting for you ▾                1m   │ │
+│                                                    │ │ ┃ ◌ Q3 Conflicts                             │ │
+│                                                    │ │ ┃ │ Where does a conflict surface to the     │ │
+│                                                    │ │ ┃ │ person, if anywhere at all?              │ │
+│ ╭────────────────────────────────────────────────╮ │ │ ┃ │ ➡ Last write wins, with a banner         │ │
+│ │ >                                              │ │ │ ┃                                            │ │
+│ ╰────────────────────────────────────────────────╯ │ │ ▼ 1 open · reply by number, 1. yes  2. …     │ │
+│   ⏵⏵ accept edits on                               │ ╰──────────────────────────────────────────────╯ │
+╰────────────────────────────────────────────────────┴──────────────────────────────────────────────────╯
+```
+
 ## Requirements
 
 - Claude Code with function-hook mods (2.1.292 or later).
@@ -79,9 +117,13 @@ Each map's section lists the rest of its words (`refresh`, `clear`).
 
 ## grill-map
 
-A pane that docks a side pane beside the transcript and draws a grilling session as a map of its choices, read top to bottom: [`/grill-me`](https://www.aihero.dev/skills-grill-me), [`/grill-with-docs`](https://www.aihero.dev/skills-grill-with-docs), or [`/grilling`](https://www.aihero.dev/skills-grilling) itself. Each round is one level of the design tree on a vertical spine, its questions hanging from it with the recommendation and what was chosen, and between the levels the facts the agent looked up and the docs it wrote.
+A side pane beside the transcript that draws a grilling session as a map of its choices, read top to bottom: [`/grill-me`](https://www.aihero.dev/skills-grill-me), [`/grill-with-docs`](https://www.aihero.dev/skills-grill-with-docs), or [`/grilling`](https://www.aihero.dev/skills-grilling) itself. Each round is one level of the design tree on a vertical spine, its questions hanging from it with the recommendation and what was chosen, and between the levels the facts the agent looked up and the docs it wrote.
 
 ```text
+        SKILLMAPS · GRILL-MAP YOUR TURN
+    ■ grill-map  ■ wayfinder-map  ■ spec-map
+⣶⣤⣴⣠⣤⣤⣤⣶⣄⡄⡀⠀⠀⣁⣤⣤⣦⣄⣴⣬⣶⣶⣤⣀⡀⢀⣤⣠⣄⣬⢀⠀⢀⣴⣼⣦⣤⣆⢀⣀⣄⣆⣄⣀⡀⠀⣀⣄
+
 ╭──────────────────────────────────────────────╮
 │ ◆ grill-with-docs                       2/3  │
 │ Offline sync for the field app               │
@@ -174,9 +216,13 @@ In the pane, a click or a tap on a level's heading folds or unfolds it, `a` (or 
 
 ## wayfinder-map
 
-A pane that docks a side pane beside the transcript and draws a [`/wayfinder`](https://www.aihero.dev/skills-wayfinder) map: the route of decision tickets from start to destination as a graph you can walk with the arrows, the decisions taken so far, the fog not yet specified, and in each ticket's card its Spine: the grilling rounds, the facts looked up and the docs written while it was worked.
+A side pane beside the transcript that draws a [`/wayfinder`](https://www.aihero.dev/skills-wayfinder) map: the route of decision tickets from start to destination as a graph you can walk with the arrows, the decisions taken so far, the fog not yet specified, and in each ticket's card its Spine: the grilling rounds, the facts looked up and the docs written while it was worked.
 
 ```text
+                           SKILLMAPS · WAYFINDER-MAP CLAIMED
+                        ■ grill-map  ■ wayfinder-map  ■ spec-map
+⠀⠠⠀⠀⠁⢠⠀⠀⠀⠀⠀⠀⡀⠀⢔⠀⠀⠐⠀⠀⠒⠀⠁⠀⠊⠀⠀⠈⠀⠄⠀⠀⠈⠀⡀⠀⠁⠐⠀⠀⠐⠀⠀⠀⡀⠐⠅⠂⠀⠐⢂⢐⠬⣝⠞⢕⡄⠂⡐⡀⠐⢉⠀⠀⠀⠀⡄⠂⠂⠄⠀⠀⠑⠀⠈⠒⠀⡀⠀⠈⠐⠀⠄⠅⠉⠀⠀⠀
+
                                        ⚑ Start
                     A foggy idea, with no idea how to get there
                                           │
@@ -270,33 +316,37 @@ Mostly no command is needed. The pane opens when `/wayfinder` runs: with a map a
 
 ## spec-map
 
-A pane that docks a side pane beside the transcript and follows a spec from idea to merge: which stage the work is in, what each subagent is doing right now, and how far the tickets have come.
+A side pane beside the transcript that follows a spec from idea to merge: which stage the work is in, what each subagent is doing right now, and how far the tickets have come.
 
 It is built around the idea-to-ship spine of [AI Hero's skills](https://www.aihero.dev/skills): `/grill-me` → `/to-spec` → `/to-tickets` → `/implement-spec` → `/code-review` → PR.
 
 ```text
-╭─────────────────────────────────────────────╮
-│ ◆ flow                         spec #237 40% │
-│ Builder, track panel and Episodes            │
-│ PR #243 · open · feat/builder-feedback  CI ✓ │
-│                                              │
-│ grill ▸ spec ▸ tickets ▸ implement ▸ review ▸ │
-╰─────────────────────────────────────────────╯
-╭─────────────────────────────────────────────╮
-│ ◆ agents                   ■ ■ □ 2/3 slots   │
-│ ● implementer #241 · Implement #241    ↻ 3m  │
-│  Bash mise run lint                          │
-│ ✓ merger #239 · Merged cleanly          12m  │
-╰─────────────────────────────────────────────╯
-╭─────────────────────────────────────────────╮
-│ ◆ tickets                       2 of 5 done  │
-│ ████████████████▓▓▓▓▓▓▓▓░░░░░░░░░░░░░░░░░░░ │
-│ ■ done 2  ■ in progress 1  ■ ready 1  ■ …    │
-│                                              │
-│ ■ #238 reopen an acknowledged warning merged │
-│ ■ #241 Create episode opens…    implementer  │
-│ ■ #240 a row preview replaces…   after #239  │
-╰─────────────────────────────────────────────╯
+         SKILLMAPS · SPEC-MAP IMPLEMENT
+    ■ grill-map  ■ wayfinder-map  ■ spec-map
+⢾⣧⠶⠄⡭⡷⠮⠄⠤⠤⠄⠄⢭⢯⢭⠄⠄⠄⠤⠄⠤⠤⠤⠤⠤⠤⠤⠄⠄⠤⠤⠤⠄⠤⠤⠄⠼⣷⡿⠤⣵⣽⡽⠄⣿⢾⣭⠤⢷
+
+╭───────────────────────────────────────────────╮
+│ ◆ flow                          spec #237 40% │
+│ Builder, track panel and Episodes             │
+│ PR #243 · open · feat/builder-feedback   CI ✓ │
+│                                               │
+│ grill ▸ spec ▸ tickets ▸ implement ▸ review   │
+╰───────────────────────────────────────────────╯
+╭───────────────────────────────────────────────╮
+│ ◆ agents                      ■ ■ □ 2/3 slots │
+│ 1: implementer ● #241 · Implement #241   ↻ 3m │
+│  Bash mise run lint                           │
+│ 2: merger #239 ✓ · Merged cleanly         12m │
+╰───────────────────────────────────────────────╯
+╭───────────────────────────────────────────────╮
+│ ◆ tickets                         2 of 5 done │
+│ ████████████████▓▓▓▓▓▓▓▓░░░░░░░░░░░░░░░░░░░░░ │
+│ ■ done 2  ■ in progress 1  ■ ready 1  ■ …     │
+│                                               │
+│ ■ #238 reopen an acknowledged warning  merged │
+│ ■ #241 Create episode opens…      implementer │
+│ ■ #240 a row preview replaces…     after #239 │
+╰───────────────────────────────────────────────╯
 ```
 
 ### What it shows
