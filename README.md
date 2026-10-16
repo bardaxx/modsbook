@@ -12,44 +12,6 @@ Mods are plugins of function hooks for [Claude Code](https://docs.claude.com/en/
 
 grill-map, wayfinder-map and spec-map were three mods before: they are skillmaps' three maps now. Coming from them, see [its install notes](mods/skillmaps#coming-from-grill-map-wayfinder-map-or-spec-map).
 
-Here is skillmaps in a Claude Code session: grill-map docked beside the transcript, following a `/grill-with-docs` with its next round waiting for your answer.
-
-```text
-╭────────────────────────────────────────────────────┬─ grill-map ──────────────────────────────────────╮
-│ > /grill-with-docs offline sync for the field app  │         SKILLMAPS · GRILL-MAP YOUR TURN          │
-│                                                    │     ■ grill-map  ■ wayfinder-map  ■ spec-map     │
-│ ● Q1 - Storage: … ➡ SQLite, with WAL               │ ⣄⣀⣠⣄⣴⣀⠀⠀⡀⢀⣠⣴⣤⣄⣤⣦⣶⣴⣤⣤⢀⠀⡀⡀⣄⣀⣀⢨⢀⣠⣤⣶⣾⣴⣬⣠⣨⣤⣄⣄⣀⢀⢀⣠⣠⣴⣤⣴ │
-│ ● Q2 - Sync trigger: … ➡ on every change           │                                                  │
-│                                                    │ ╭──────────────────────────────────────────────╮ │
-│ > 1. yes  2. no, every minute                      │ │ ◆ grill-with-docs                       2/3  │ │
-│                                                    │ │ Offline sync for the field app               │ │
-│ ● Read(src/sync/queue.ts)                          │ │                                              │ │
-│   ⎿  Read 182 lines                                │ │ ███████████████████████████████▓▓▓▓▓▓▓▓▓▓▓▓▓ │ │
-│ ● Update(CONTEXT.md)                               │ │ ✓ took 1  ✎ yours 1  ◌ open 1  ⌕ lookups 3   │ │
-│   ⎿  Added 1 line                                  │ ╰──────────────────────────────────────────────╯ │
-│ ● Write(docs/adr/0001-sqlite-on-the-device.md)     │ ╭──────────────────────────────────────────────╮ │
-│   ⎿  Wrote 24 lines                                │ │ Spine                    2 levels · 1 open   │ │
-│                                                    │ │ ◎ started                           6m ago   │ │
-│ ● Q3 - Conflicts: where does a conflict            │ │ ┃ ⌕ agent · Find the current sync code done  │ │
-│   surface to the person, if anywhere at all?       │ │ ┃ ⌕ 2 lookups · queue.ts                     │ │
-│   ➡ Last write wins, with a banner                 │ │ ┃                                            │ │
-│                                                    │ │ ● L1 · 2/2 settled ▸                    4m   │ │
-│                                                    │ │ ┃ ✓ Storage → SQLite, with WAL               │ │
-│                                                    │ │ ┃ ✎ Sync trigger → no, every minute          │ │
-│                                                    │ │ ┃ ≡ CONTEXT.md · Sync Log                    │ │
-│                                                    │ │ ┃ ⚑ ADR 0001 · SQLite on the device          │ │
-│                                                    │ │ ┃                                            │ │
-│                                                    │ │ ◆ L2 · waiting for you ▾                1m   │ │
-│                                                    │ │ ┃ ◌ Q3 Conflicts                             │ │
-│                                                    │ │ ┃ │ Where does a conflict surface to the     │ │
-│                                                    │ │ ┃ │ person, if anywhere at all?              │ │
-│ ╭────────────────────────────────────────────────╮ │ │ ┃ │ ➡ Last write wins, with a banner         │ │
-│ │ >                                              │ │ │ ┃                                            │ │
-│ ╰────────────────────────────────────────────────╯ │ │ ▼ 1 open · reply by number, 1. yes  2. …     │ │
-│   ⏵⏵ accept edits on                               │ ╰──────────────────────────────────────────────╯ │
-╰────────────────────────────────────────────────────┴──────────────────────────────────────────────────╯
-```
-
 ## Install
 
 At the prompt of a Claude Code terminal session, add the marketplace first (once):
