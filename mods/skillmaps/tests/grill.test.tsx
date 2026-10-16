@@ -5,7 +5,7 @@ const PANE = {
   component: 'Pane',
   requestId: 'grill-map',
   props: {
-    title: 'Grill',
+    title: 'grill-map',
     isFocused: false,
     bodyColumns: 64,
     placement: 'dock',
@@ -64,7 +64,7 @@ test('a /grill-me round hangs from the spine, the next level waits for the perso
   expect(statuses.at(-1)).toBe('grill L2 · 1 open')
 
   for (const surface of ['terminal', 'desktop'] as const) {
-    const ui = await $.ui.mount({ plugin: 'grill-map', surface, ...PANE })
+    const ui = await $.ui.mount({ plugin: 'skillmaps', surface, ...PANE })
     const has = async (text: RegExp) => expect(await ui.find({ text }), String(text)).toBeDefined()
     const hasNot = async (text: RegExp) => expect(await ui.find({ text }), String(text)).toBeUndefined()
     await has(/◆ grill-me/)
@@ -83,7 +83,7 @@ test('a /grill-me round hangs from the spine, the next level waits for the perso
     // The newest level is drawn whole.
     await has(/◆ L2 · waiting for you ▾/)
     // The header names the mod in its color and says whose turn it is; the legend lists the book.
-    await has(/^MODSBOOK · GRILL-MAP YOUR TURN$/)
+    await has(/^SKILLMAPS · GRILL-MAP YOUR TURN$/)
     await has(/■ grill-map  ■ wayfinder-map  ■ spec-map/)
     await has(/┃ ◌ Q3 Conflicts/)
     await has(/┃ │ Where does a conflict surface/)
@@ -129,7 +129,7 @@ test('grill-with-docs: lookups, glossary terms and ADRs sit on the spine, and th
   })
   await $.turn.complete(turn('So: rows live in SQLite with WAL and every write syncs. Is that our shared understanding?', 't2'))
 
-  const ui = await $.ui.mount({ plugin: 'grill-map', surface: 'terminal', ...PANE })
+  const ui = await $.ui.mount({ plugin: 'skillmaps', surface: 'terminal', ...PANE })
   const has = async (text: RegExp) => expect(await ui.find({ text }), String(text)).toBeDefined()
   await has(/◆ grill-with-docs/)
   await has(/^The offline sync for the field app$/)
@@ -151,12 +151,12 @@ test('grill-with-docs: lookups, glossary terms and ADRs sit on the spine, and th
   await ui.unmount()
 })
 
-test('a grill another skill runs takes that skill\'s argument as its subject', async ($, on) => {
+test('a grill another skill runs takes that skill\'s argument as its subject', { options: { wayfinder: false } }, async ($, on) => {
   stubs(on)
   await $.prompt.submit(say('ok, confirmed'))
   await $.skill.prompt({ skill: 'mattpocock-skills:wayfinder', text: 'A loose idea has arrived…\n\nARGUMENTS: Offline sync for the field app' })
   await $.skill.prompt({ skill: 'mattpocock-skills:grilling', text: 'Interview the user relentlessly…' })
-  const ui = await $.ui.mount({ plugin: 'grill-map', surface: 'terminal', ...PANE })
+  const ui = await $.ui.mount({ plugin: 'skillmaps', surface: 'terminal', ...PANE })
   expect(await ui.find({ type: 'Text', text: /^Offline sync for the field app$/ })).toBeDefined()
   await ui.unmount()
 })
@@ -165,7 +165,7 @@ test('a round in the grilling format starts a grill by itself, subject the last 
   stubs(on)
   await $.prompt.submit(say('Grill me on the billing rewrite'))
   await $.turn.complete(turn(ROUND_TWO, 't1'))
-  const ui = await $.ui.mount({ plugin: 'grill-map', surface: 'terminal', ...PANE })
+  const ui = await $.ui.mount({ plugin: 'skillmaps', surface: 'terminal', ...PANE })
   const has = async (text: RegExp) => expect(await ui.find({ text }), String(text)).toBeDefined()
   await has(/◆ grilling/)
   await has(/^Grill me on the billing rewrite$/)
@@ -177,7 +177,7 @@ test('a new level takes the focus: the levels before it fold, even one unfolded 
   stubs(on)
   await $.skill.prompt({ skill: 'grill-me', text: 'ARGUMENTS: Offline sync' })
   await $.turn.complete(turn(ROUND_ONE, 't1'))
-  const ui = await $.ui.mount({ plugin: 'grill-map', surface: 'terminal', ...PANE })
+  const ui = await $.ui.mount({ plugin: 'skillmaps', surface: 'terminal', ...PANE })
   const has = async (text: RegExp) => expect(await ui.find({ text }), String(text)).toBeDefined()
   await has(/◆ L1 · waiting for you ▾/)
 

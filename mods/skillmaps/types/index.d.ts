@@ -1,5 +1,7 @@
-// The Spine's steps, declared alike in both mods' contracts (a contract imports nothing): hooks/spine.tsx and
-// hooks/reply.ts read them, and scripts/check.sh compares the two declarations, down to `export type Step`.
+// skillmaps' state: one value per map, under the one plugin. A contract imports nothing.
+
+// ======== The Spine's steps: a grilling's rounds, lookups, glossary terms, ADRs and Wrap-up, as grill-map and
+// wayfinder-map draw them (hooks/spine.tsx and hooks/reply.ts read them).
 /** One question of a round (`❓ **Q1** - **Title**: body … ➡ recommended`) or of an AskUserQuestion dialog. */
 export type Question = {
   n: string
@@ -48,6 +50,8 @@ export type AdrStep = { kind: 'adr'; id: string; at: number; file: string; numbe
 export type WrapStep = { kind: 'wrap'; id: string; at: number; text: string; reply?: string; isConfirmed?: boolean }
 
 export type Step = RoundStep | LookupStep | TermStep | AdrStep | WrapStep
+
+// ======== wayfinder-map
 
 export type TicketType = 'research' | 'prototype' | 'grilling' | 'task'
 
@@ -138,7 +142,7 @@ export type Wayfinder = {
   refreshedAt: number | null
 }
 
-/** A Run: the stretch of a conversation that works a map, from `/wayfinder` to `/clear`, a separate grill or `/waymap clear`. */
+/** A Run: the stretch of a conversation that works a map, from `/wayfinder` to `/clear`, a separate grill or `/skillmaps wayfinder clear`. */
 export type Run = {
   /** The ticket claimed in the Run, null while charting. */
   ticket: { id: string; title: string } | null
@@ -146,8 +150,104 @@ export type Run = {
   claimedAt: number | null
 }
 
+// ======== grill-map
+/** The skill that started the grill: the interview itself, or one of its two wrappers. */
+export type GrillSkill = 'grilling' | 'grill-me' | 'grill-with-docs'
+
+export type Grill = {
+  id: string
+  skill: GrillSkill
+  subject: string
+  startedAt: number
+  steps: Step[]
+  /** The person confirmed the shared understanding. */
+  isDone: boolean
+  /** Inside a wayfinder Run: the claimed ticket's id, or `charting`. Absent for a grill of its own. */
+  run?: string
+}
+
+export type GrillBook = {
+  grills: Grill[]
+  /** The grill the pane shows; null follows the newest. */
+  shown: string | null
+  /** Levels a press turned from how they are drawn by default. */
+  expanded: string[]
+  isAllExpanded: boolean
+  /** The person's last prompt, the subject of a grill the model starts by itself. */
+  lastPrompt: string
+}
+
+/** wayfinder-map's Run, read by grill-map to know a grill runs inside /wayfinder. */
+export type WayfinderRun = Run
+
+// ======== spec-map
+export type Stage = 'grill' | 'spec' | 'tickets' | 'implement' | 'review' | 'ship'
+
+export type Role = 'implementer' | 'merger' | 'reviewer' | 'explorer' | 'agent'
+
+/** One thing an agent did: a tool it ran, or a line it wrote between tools. */
+export type AgentStep = {
+  kind: 'tool' | 'say'
+  id: string
+  text: string
+  status: 'running' | 'ok' | 'error'
+  at: number
+  ms?: number
+  /** The first line of the error the tool answered. */
+  error?: string
+}
+
+export type AgentRow = {
+  id: string
+  role: Role
+  description: string
+  type: string
+  tickets: number[]
+  status: 'running' | 'done' | 'failed'
+  activity: string
+  report: string
+  startedAt: number
+  endedAt?: number
+  /** The newest steps, oldest first. */
+  steps: AgentStep[]
+  tools: number
+  errors: number
+}
+
+export type SpecTicket = {
+  number: number
+  title: string
+  isClosed: boolean
+  /** Merged into the integration branch: a merge commit of the spec's PR names it. */
+  isMerged: boolean
+  blockedBy: number[]
+}
+
+export type IntegrationPr = {
+  number: number
+  branch: string
+  state: 'open' | 'draft' | 'merged' | 'closed'
+  ci: 'pass' | 'fail' | 'running' | 'none'
+}
+
+export type Flow = {
+  stage: Stage | null
+  lastSkill: string | null
+  spec: { number: number; title: string } | null
+  pr: number | null
+  integration: IntegrationPr | null
+  /** The cap on parallel implementers the running skill states, if it states one. */
+  slotCap: number | null
+  tickets: SpecTicket[]
+  agents: AgentRow[]
+  /** The agent whose steps the pane lays out in full. */
+  focus: string | null
+  error: string | null
+  refreshedAt: number | null
+}
+
 declare module 'claude-code' {
   interface PluginState {
-    'wayfinder-map': { way: Wayfinder; run: Run | null }
+    skillmaps: { book: GrillBook; way: Wayfinder; run: Run | null; flow: Flow }
   }
 }

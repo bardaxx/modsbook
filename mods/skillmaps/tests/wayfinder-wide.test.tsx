@@ -33,14 +33,14 @@ test('a map shaped like the article draws as a graph that fans out and merges', 
   })
   on('ui.open', () => ({ value: { isPlaced: true as const } }))
   await $.command.run({
-    command: 'waymap',
-    args: '9',
+    command: 'skillmaps',
+    args: 'wayfinder 9',
     origin: { kind: 'composer' },
     presentation: { isFullscreen: true, columns: 160 },
   })
   for (const columns of [86, 50]) {
     const ui = await $.ui.mount({
-      plugin: 'wayfinder-map',
+      plugin: 'skillmaps',
       surface: 'terminal',
       component: 'Pane',
       requestId: 'wayfinder-map',

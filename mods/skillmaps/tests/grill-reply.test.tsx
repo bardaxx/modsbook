@@ -5,7 +5,7 @@ const PANE = {
   component: 'Pane',
   requestId: 'grill-map',
   props: {
-    title: 'Grill',
+    title: 'grill-map',
     isFocused: false,
     bodyColumns: 72,
     placement: 'dock',
@@ -67,7 +67,7 @@ for (const [round, reply, legend] of cases)
     await $.skill.prompt({ skill: 'grill-me', text: 'ARGUMENTS: Offline sync' })
     await $.turn.complete(turn(round, 't1'))
     await $.prompt.submit(say(reply))
-    const ui = await $.ui.mount({ plugin: 'grill-map', surface: 'terminal', ...PANE })
+    const ui = await $.ui.mount({ plugin: 'skillmaps', surface: 'terminal', ...PANE })
     const drawn = (await ui.findAll({ type: 'Text', text: /^(✓ took|✎ yours|⏎ in reply|◌ open) \d+$/ })).map(t => t.text)
     expect(drawn).toEqual(legend)
     await ui.unmount()
@@ -82,7 +82,7 @@ test('a yes with a Reserve pushes the Wrap-up back; the next Wrap-up closes the 
   expect(statuses.at(-1)).toBe('grill · confirm the shared understanding')
 
   await $.prompt.submit(say('sì, ma aggiungi i retry'))
-  const ui = await $.ui.mount({ plugin: 'grill-map', surface: 'terminal', ...PANE })
+  const ui = await $.ui.mount({ plugin: 'skillmaps', surface: 'terminal', ...PANE })
   const has = async (text: RegExp) => expect(await ui.find({ text }), String(text)).toBeDefined()
   await has(/◎ wrap-up, pushed back/)
   expect(await ui.find({ type: 'Text', text: /^ done $/ }), 'still open').toBeUndefined()
@@ -103,7 +103,7 @@ test('a Level folds by a press on its heading, never by a digit; `a` is a labell
   await $.prompt.submit(say('yes'))
   await $.turn.complete(turn(ONE, 't2'))
   for (const surface of ['terminal', 'desktop'] as const) {
-    const ui = await $.ui.mount({ plugin: 'grill-map', surface, ...PANE })
+    const ui = await $.ui.mount({ plugin: 'skillmaps', surface, ...PANE })
     for (const key of ['level-1', 'level-2']) {
       const level = await ui.find({ key })
       expect(level, key).toBeDefined()

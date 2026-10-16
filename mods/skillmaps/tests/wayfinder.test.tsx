@@ -4,7 +4,7 @@ const PANE = {
   component: 'Pane',
   requestId: 'wayfinder-map',
   props: {
-    title: 'Wayfinder',
+    title: 'wayfinder-map',
     isFocused: false,
     bodyColumns: 72,
     placement: 'dock',
@@ -65,13 +65,13 @@ test('the route draws the map as a tree of tickets, with the next one on the fro
   })
   on('ui.open', () => ({ value: { isPlaced: true as const } }))
 
-  await $.command.run({ command: 'waymap', args: '42', ...RUN })
+  await $.command.run({ command: 'skillmaps', args: 'wayfinder 42', ...RUN })
 
   // The surfaces with no surface module's region draw the route as an indented tree.
   for (const surface of ['vscode', 'mobile'] as const) {
-    const ui = await $.ui.mount({ plugin: 'wayfinder-map', surface, ...PANE })
+    const ui = await $.ui.mount({ plugin: 'skillmaps', surface, ...PANE })
     const has = async (text: RegExp) => expect(await ui.find({ text }), String(text)).toBeDefined()
-    await has(/^MODSBOOK · WAYFINDER-MAP MAPPED$/)
+    await has(/^SKILLMAPS · WAYFINDER-MAP MAPPED$/)
     await has(/map #42/)
     await has(/^Offline sync$/)
     await has(/A spec for offline sync/)
@@ -101,7 +101,7 @@ test('the route draws the map as a tree of tickets, with the next one on the fro
 
   // The terminal and the desktop draw it as a graph from Start to Destination, walked with the arrows.
   for (const surface of ['terminal', 'desktop'] as const) {
-    const ui = await $.ui.mount({ plugin: 'wayfinder-map', surface, ...PANE })
+    const ui = await $.ui.mount({ plugin: 'skillmaps', surface, ...PANE })
     await ui.resize({ columns: 68, rows: 30, in: 'graph' })
     const inGraph = async (text: RegExp) =>
       expect(await ui.find({ type: 'Text', text, in: 'graph' }), String(text)).toBeDefined()
@@ -185,7 +185,7 @@ test('a local map is read from .scratch, and a claim there marks the ticket as y
     content: files['/repo/.scratch/sync/issues/02-log.md'] ?? '',
   })
 
-  const ui = await $.ui.mount({ plugin: 'wayfinder-map', surface: 'terminal', ...PANE })
+  const ui = await $.ui.mount({ plugin: 'skillmaps', surface: 'terminal', ...PANE })
   const has = async (text: RegExp) => expect(await ui.find({ text }), String(text)).toBeDefined()
   await has(/^sync $/)
   const inGraph = async (text: RegExp) =>

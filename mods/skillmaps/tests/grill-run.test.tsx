@@ -7,7 +7,7 @@ const PANE = {
   component: 'Pane',
   requestId: 'grill-map',
   props: {
-    title: 'Grill',
+    title: 'grill-map',
     isFocused: false,
     bodyColumns: 72,
     placement: 'dock',
@@ -23,7 +23,7 @@ const stubs = (on: On) => {
   const world = { run: null as WayfinderRun | null, statuses: [] as (string | undefined)[] }
   mock.store(on)
   on('state.get', ($, e, next) =>
-    e.plugin === 'wayfinder-map' && e.key === 'run' ? { value: { value: world.run, version: 1 } } : next(e),
+    e.plugin === 'skillmaps' && e.key === 'run' ? { value: { value: world.run, version: 1 } } : next(e),
   )
   on('ui.status', (_$, e) => {
     world.statuses.push(e.text)
@@ -46,7 +46,8 @@ const turn = (answer: string, turnId: string) =>
   ({ answer, durationMs: 1, isAborted: false, turnId, reason: 'answer' }) as const
 const say = (text: string) => ({ text, wait: false, origin: { kind: 'composer' } }) as const
 
-test('inside a Run: no status line of its own, one grill per claimed ticket, a charting grill before', async ($, on) => {
+// wayfinder-map's part turned off: the test moves the Run itself, as wayfinder-map would.
+test('inside a Run: no status line of its own, one grill per claimed ticket, a charting grill before', { options: { wayfinder: false } }, async ($, on) => {
   const world = stubs(on)
 
   // A grill of its own: its status line, until the Run starts.
@@ -67,7 +68,7 @@ test('inside a Run: no status line of its own, one grill per claimed ticket, a c
   await $.turn.complete(turn(ROUND, 't2'))
   expect(world.statuses.at(-1)).toBeUndefined()
 
-  const ui = await $.ui.mount({ plugin: 'grill-map', surface: 'terminal', ...PANE })
+  const ui = await $.ui.mount({ plugin: 'skillmaps', surface: 'terminal', ...PANE })
   const has = async (text: RegExp) => expect(await ui.find({ text }), String(text)).toBeDefined()
   await has(/^The Spine under the tree fallback$/)
   await has(/^3\/3 $/)
@@ -85,7 +86,7 @@ test('inside a Run: no status line of its own, one grill per claimed ticket, a c
   expect(world.statuses.at(-1)).toBe('grill · starting')
 })
 
-test('with no wayfinder-map, a /wayfinder grill is a grill of its own, status line included', async ($, on) => {
+test('with no wayfinder-map, a /wayfinder grill is a grill of its own, status line included', { options: { wayfinder: false } }, async ($, on) => {
   const statuses: (string | undefined)[] = []
   mock.store(on)
   on('ui.status', (_$, e) => {

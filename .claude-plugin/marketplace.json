@@ -6,19 +6,9 @@
   "description": "A book of Claude Code mods: side panes, bands, status lines and hooks, each one line to install.",
   "plugins": [
     {
-      "name": "spec-map",
-      "source": "./mods/spec-map",
-      "description": "A side pane that follows a spec from idea to merge: stage, agents, tickets and PR"
-    },
-    {
-      "name": "wayfinder-map",
-      "source": "./mods/wayfinder-map",
-      "description": "A side pane for /wayfinder: the map as a navigable graph from start to destination, the decisions so far, the fog and the grilling's design tree"
-    },
-    {
-      "name": "grill-map",
-      "source": "./mods/grill-map",
-      "description": "A side pane for /grill-me, /grill-with-docs and /grilling: the design tree top to bottom, one level per round, with each recommendation, what was chosen, the lookups and the docs written"
+      "name": "skillmaps",
+      "source": "./mods/skillmaps",
+      "description": "Side panes along the AI Hero skills: grill-map for a grilling's design tree, wayfinder-map for a /wayfinder map, spec-map for a spec from its tickets to the merge; each turned on in the settings"
     }
   ]
 }

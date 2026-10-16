@@ -1,0 +1,37 @@
+{
+  "name": "skillmaps",
+  "version": "0.1.0",
+  "description": "Side panes along the AI Hero skills: grill-map for a grilling's design tree, wayfinder-map for a /wayfinder map, spec-map for a spec from its tickets to the merge",
+  "author": {
+    "name": "bardaxx"
+  },
+  "repository": "https://github.com/bardaxx/modsbook",
+  "license": "MIT",
+  "userConfig": {
+    "grill": {
+      "type": "boolean",
+      "title": "grill-map",
+      "description": "The design tree of /grilling, /grill-me and /grill-with-docs, one level per round.",
+      "default": true
+    },
+    "wayfinder": {
+      "type": "boolean",
+      "title": "wayfinder-map",
+      "description": "The /wayfinder map as a graph from start to destination, its decisions, fog and each ticket's grilling.",
+      "default": true
+    },
+    "spec": {
+      "type": "boolean",
+      "title": "spec-map",
+      "description": "A spec from idea to merge: the stage, what each subagent is doing, the tickets and the integration PR.",
+      "default": true
+    },
+    "slots": {
+      "type": "number",
+      "title": "spec-map implementer slots",
+      "description": "How many implementers may run at once, drawn as spec-map's slot meter. 0 reads the cap from the skill that runs (\"3 slots\"), or draws none.",
+      "default": 0
+    }
+  },
+  "types": "./types/index.d.ts"
+}

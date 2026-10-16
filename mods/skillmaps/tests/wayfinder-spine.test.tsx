@@ -5,7 +5,7 @@ const PANE = {
   component: 'Pane',
   requestId: 'wayfinder-map',
   props: {
-    title: 'Wayfinder',
+    title: 'wayfinder-map',
     isFocused: false,
     bodyColumns: 76,
     placement: 'dock',
@@ -135,7 +135,7 @@ test('a claimed ticket\'s Levels, Traces and Wrap-up sit in its card; Charting\'
   await $.prompt.submit(say('sì'))
 
   for (const surface of ['mobile', 'terminal'] as const) {
-    const ui = await $.ui.mount({ plugin: 'wayfinder-map', surface, ...PANE })
+    const ui = await $.ui.mount({ plugin: 'skillmaps', surface, ...PANE })
     const has = async (text: RegExp) => expect(await ui.find({ text }), `${surface} ${text}`).toBeDefined()
     const hasNot = async (text: RegExp) => expect(await ui.find({ text }), `${surface} ${text}`).toBeUndefined()
     expect(await ui.find({ key: 'tab-decisions' })).toBeDefined()
@@ -186,7 +186,7 @@ test('a claimed ticket\'s Levels, Traces and Wrap-up sit in its card; Charting\'
   expect(statuses.at(-1)).toBe('charting · L1 · next frontier')
   await $.turn.complete(turn(CHARTING_ROUND.replace('Scope', 'Retries'), 't4'))
 
-  const ui = await $.ui.mount({ plugin: 'wayfinder-map', surface: 'mobile', ...PANE })
+  const ui = await $.ui.mount({ plugin: 'skillmaps', surface: 'mobile', ...PANE })
   const has = async (text: RegExp) => expect(await ui.find({ text }), String(text)).toBeDefined()
   // Charting is live again: a Level since the last claim, drawn whole.
   await has(/◆ L2 · waiting for you ▾/)
@@ -206,11 +206,12 @@ test('a claim made from the shell is seen once the map shows it', async ($, on) 
   expect(statuses.at(-1)).toBe('Pick the storage engine · starting')
 })
 
-test('outside a Run, a map followed by hand keeps no Spine', async ($, on) => {
+// grill-map's part turned off: its own status line would stand beside the Run's.
+test('outside a Run, a map followed by hand keeps no Spine', { options: { grill: false } }, async ($, on) => {
   const { store, statuses } = stubs(on)
   await $.command.run({
-    command: 'waymap',
-    args: DIR,
+    command: 'skillmaps',
+    args: `wayfinder ${DIR}`,
     origin: { kind: 'composer' },
     presentation: { isFullscreen: true, columns: 160 },
   })
@@ -219,7 +220,7 @@ test('outside a Run, a map followed by hand keeps no Spine', async ($, on) => {
   expect(statuses.filter(s => s !== undefined)).toEqual([])
 })
 
-test('/grill-me ends the Run: the status line goes, and later rounds stay off the map', async ($, on) => {
+test('/grill-me ends the Run: the status line goes, and later rounds stay off the map', { options: { grill: false } }, async ($, on) => {
   const { store, statuses } = stubs(on)
   await $.skill.prompt(wayfinder(DIR))
   await $.skill.prompt({ skill: 'grill-me', text: 'ARGUMENTS: Something else' })
