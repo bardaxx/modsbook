@@ -1,13 +1,12 @@
 {
-  "name": "spec-flow",
-  "owner": {
-    "name": "bardaxx"
-  },
-  "description": "A Claude Code side pane that follows a spec from idea to merge",
+  "name": "bardaxx-mods",
+  "owner": { "name": "bardaxx" },
+  "description": "Claude Code mods: panes, bands and hooks for the terminal and the desktop Code tab",
   "plugins": [
     {
       "name": "spec-flow",
-      "source": "./"
+      "source": "./mods/spec-flow",
+      "description": "A side pane that follows a spec from idea to merge: stage, agents, tickets and PR"
     }
   ]
 }
