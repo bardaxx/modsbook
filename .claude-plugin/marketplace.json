@@ -1,0 +1,13 @@
+{
+  "name": "spec-flow",
+  "owner": {
+    "name": "bardaxx"
+  },
+  "description": "A Claude Code side pane that follows a spec from idea to merge",
+  "plugins": [
+    {
+      "name": "spec-flow",
+      "source": "./"
+    }
+  ]
+}

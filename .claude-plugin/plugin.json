@@ -1,0 +1,9 @@
+{
+  "name": "spec-flow",
+  "version": "0.1.0",
+  "description": "Side pane for the idea-to-ship flow: stage, spec, tickets and what each agent is doing",
+  "author": { "name": "bardaxx" },
+  "repository": "https://github.com/bardaxx/spec-flow",
+  "license": "MIT",
+  "types": "./types/index.d.ts"
+}
