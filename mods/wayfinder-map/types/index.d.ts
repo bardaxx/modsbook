@@ -1,3 +1,54 @@
+// The Spine's steps, declared alike in both mods' contracts (a contract imports nothing): hooks/spine.tsx and
+// hooks/reply.ts read them, and scripts/check.sh compares the two declarations, down to `export type Step`.
+/** One question of a round (`❓ **Q1** - **Title**: body … ➡ recommended`) or of an AskUserQuestion dialog. */
+export type Question = {
+  n: string
+  title: string
+  /** The question's body, the choices left out. */
+  body: string
+  /** The choices the body listed, or the options the dialog offered. */
+  options: string[]
+  /** The recommended answer (`➡ …`), or the dialog's "(Recommended)" option. */
+  recommended: string
+  answer?: string
+  /** The person took the recommendation: a yes with no Reserve, or the recommended option. */
+  isAccepted?: boolean
+}
+
+/** A Level: one round, the frontier as it stood. */
+export type RoundStep = {
+  kind: 'round'
+  id: string
+  at: number
+  via: 'grilling' | 'dialog'
+  questions: Question[]
+  /** What the person wrote back, whole. */
+  reply?: string
+}
+
+/** A fact the agent went to find instead of asking: a sub-agent, or a run of reads and searches. */
+export type LookupStep = {
+  kind: 'lookup'
+  id: string
+  at: number
+  label: string
+  isAgent: boolean
+  /** Reads and searches folded into this step. */
+  count: number
+  isDone: boolean
+}
+
+/** Terms written to the glossary (`CONTEXT.md`, `GLOSSARY.md`). */
+export type TermStep = { kind: 'term'; id: string; at: number; file: string; terms: string[] }
+
+/** An ADR written under `docs/adr/`. */
+export type AdrStep = { kind: 'adr'; id: string; at: number; file: string; number: string; title: string; isUpdate: boolean }
+
+/** The Wrap-up: a turn that ended without questions once rounds were answered, the summary up for confirmation. */
+export type WrapStep = { kind: 'wrap'; id: string; at: number; text: string; reply?: string; isConfirmed?: boolean }
+
+export type Step = RoundStep | LookupStep | TermStep | AdrStep | WrapStep
+
 export type TicketType = 'research' | 'prototype' | 'grilling' | 'task'
 
 export type Source = 'github' | 'local'
@@ -38,30 +89,7 @@ export type MapView = {
   tickets: Ticket[]
 }
 
-/** One question of a grilling round (`❓ **Q1** - **…**`) or of an AskUserQuestion dialog. */
-export type Question = {
-  n: string
-  title: string
-  /** The recommended answer (`➡ …`), or the options the dialog offered. */
-  recommended: string
-  options: string[]
-  answer?: string
-  /** The person said yes to the recommendation. */
-  isAccepted?: boolean
-}
-
-export type Round = {
-  id: string
-  /** The ticket being resolved when it was asked; null while charting the destination. */
-  ticket: string | null
-  at: number
-  kind: 'grilling' | 'dialog'
-  questions: Question[]
-  /** What the person wrote back, whole. */
-  reply?: string
-}
-
-export type Tab = 'route' | 'decisions' | 'grill'
+export type Tab = 'route' | 'decisions'
 
 export type NodeState = 'resolved' | 'claimed' | 'frontier' | 'blocked'
 
@@ -92,21 +120,34 @@ export type GraphProps = {
 /** What the graph posts to the hooks module as its selection moves. */
 export type GraphMessage = { focus: string | null }
 
+/** One line of a map's Spines: a step, and the ticket it was taken under; null for Charting. */
+export type Line = Step & { ticket: string | null }
+
 export type Wayfinder = {
   target: Target | null
   map: MapView | null
-  /** The ticket this session claimed. */
-  working: string | null
-  rounds: Round[]
+  /** Every ticket's Spine and Charting's, in the order the lines came; the map's store keeps them. */
+  lines: Line[]
   tab: Tab
   /** The ticket whose card is open on the route. */
   focus: string | null
+  /** Levels a press turned from how they are drawn by default. */
+  turned: string[]
+  isAllUnfolded: boolean
   error: string | null
   refreshedAt: number | null
 }
 
+/** A Run: the stretch of a conversation that works a map, from `/wayfinder` to `/clear`, a separate grill or `/waymap clear`. */
+export type Run = {
+  /** The ticket claimed in the Run, null while charting. */
+  ticket: { id: string; title: string } | null
+  /** When the last claim was seen. */
+  claimedAt: number | null
+}
+
 declare module 'claude-code' {
   interface PluginState {
-    'wayfinder-map': { way: Wayfinder }
+    'wayfinder-map': { way: Wayfinder; run: Run | null }
   }
 }

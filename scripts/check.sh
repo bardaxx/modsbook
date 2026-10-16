@@ -26,6 +26,20 @@ check_version() {
   fi
 }
 
+# The files the two Spine mods share ship from each mod's own folder: one copy each, kept identical.
+for shared in hooks/spine.tsx hooks/reply.ts; do
+  if ! cmp -s "mods/grill-map/$shared" "mods/wayfinder-map/$shared"; then
+    echo "✘ $shared differs between mods/grill-map and mods/wayfinder-map: keep the two copies identical"
+    failed=1
+  fi
+done
+# A contract imports nothing, so both declare the Spine's steps, from the top down to `export type Step`.
+steps() { sed '/^export type Step = /q' "mods/$1/types/index.d.ts"; }
+if [ "$(steps grill-map)" != "$(steps wayfinder-map)" ]; then
+  echo "✘ the Spine's step types differ between the contracts of grill-map and wayfinder-map: keep them identical"
+  failed=1
+fi
+
 claude plugin validate .
 for mod in mods/*/; do
   mod="${mod%/}"

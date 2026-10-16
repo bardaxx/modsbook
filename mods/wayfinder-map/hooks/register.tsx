@@ -5,20 +5,37 @@ import type {
   Entry,
   GraphMessage,
   GraphProps,
+  Line,
   MapView,
   Question,
-  Round,
+  RoundStep,
+  Run,
+  Step,
   Tab,
   Target,
   Ticket,
   TicketType,
   Wayfinder,
 } from '../types'
+import { applyReply, dialogRound, firstLine, isWaiting, isWrapDue, lastTurn, markOf, parseRound, plain, settleWrap } from './reply'
+import {
+  cut,
+  docTraceOf,
+  foldAllButton,
+  foldsInto,
+  isDocPath,
+  lookupOf,
+  since,
+  spineHeading,
+  spineRows,
+  termsFoldInto,
+} from './spine'
 
 const PANE = 'wayfinder-map'
 const TITLE = 'Wayfinder'
 const POLL_MS = 60_000
-const ROUNDS_KEPT = 60
+// About 800 KB at worst, of the store's 4 MiB in all.
+const LINES_KEPT = 400
 
 // The modsbook palette: muted pills on a dark track, dark ink on the pills.
 const INK = '#151515'
@@ -53,32 +70,26 @@ const TYPES = new Set<string>(['research', 'prototype', 'grilling', 'task'])
 const EMPTY: Wayfinder = {
   target: null,
   map: null,
-  working: null,
-  rounds: [],
+  lines: [],
   tab: 'route',
   focus: null,
+  turned: [],
+  isAllUnfolded: false,
   error: null,
   refreshedAt: null,
 }
 const way = atom({ plugin: 'wayfinder-map', key: 'way' } as const, EMPTY)
+const running = atom({ plugin: 'wayfinder-map', key: 'run' } as const, null)
 
-// State kept from an older version lacks the fields added since.
-const current = async ($: EngineInterface): Promise<Wayfinder> => ({ ...EMPTY, ...(await read($, way)) })
-
-const firstLine = (text: string) => text.split('\n').find(line => line.trim())?.trim() ?? ''
-const plain = (text: string) =>
-  text
-    .replace(/\*\*|__|`/g, '')
-    .replace(/\[([^\]]+)\]\([^)]*\)/g, '$1')
-    .replace(/\s+/g, ' ')
-    .trim()
-const since = (from: number, to = Date.now()) => {
-  const s = Math.max(0, Math.round((to - from) / 1000))
-  if (s < 60) return `${s}s`
-  const m = Math.floor(s / 60)
-  return m < 60 ? `${m}m` : `${Math.floor(m / 60)}h${m % 60}m`
+// State kept from an older version lacks the fields added since; its `grill` tab is gone.
+const current = async ($: EngineInterface): Promise<Wayfinder> => {
+  const w = { ...EMPTY, ...(await read($, way)) }
+  return w.tab === 'route' || w.tab === 'decisions' ? w : { ...w, tab: 'route' }
 }
-const cut = (text: string, room: number) => (text.length > room ? `${text.slice(0, Math.max(1, room - 1))}…` : text)
+const runOf = async ($: EngineInterface): Promise<Run | null> => (await read($, running)) ?? null
+
+let made = 0
+const newId = (prefix: string) => `${prefix}${Date.now().toString(36)}-${made++}`
 
 // ── The map and its tickets, as the tracker doc's "Wayfinding operations" lay them out ──
 
@@ -255,61 +266,106 @@ const readLocal = async ($: EngineInterface, dir: string): Promise<MapView> => {
   }
 }
 
-// ── Grilling rounds: the design tree the grilling skill works in rounds ──
+// ── The Spines: each ticket's lines and Charting's, kept per map ──
 
-/** `❓ **Q1** - **Title**: body … ➡ recommended`, once per question of the round. */
-const parseRound = (text: string): Question[] =>
-  text
-    .split(/^[ \t>]*❓\s*/m)
-    .slice(1)
-    .flatMap(chunk => {
-      const head = /^\**\s*Q?(\d+)\s*\**\s*[-–—:.]?\s*(?:\*\*([^*]+)\*\*\s*:?)?\s*([\s\S]*)$/i.exec(chunk)
-      if (!head) return []
-      const rest = (head[3] ?? '').split(/\n\s*---/)[0] ?? ''
-      const arrow = rest.search(/➡/)
-      const before = arrow < 0 ? rest : rest.slice(0, arrow)
-      const recommended = arrow < 0 ? '' : plain(rest.slice(arrow).replace(/^➡\uFE0F?\s*/, '').split(/\n\s*\n/)[0] ?? '')
-      const options = before
-        .split('\n')
-        .map(line => /^\s*(?:[-*]|\(?[a-zA-Z0-9]\)|[A-Za-z]\.)\s+(.+)$/.exec(line)?.[1])
-        .filter((o): o is string => Boolean(o))
-        .map(plain)
-        .slice(0, 6)
-      const title = plain(head[2] ?? firstLine(before))
-      return title ? [{ n: head[1] ?? '', title, recommended, options }] : []
-    })
+const spineKey = (t: Target) => `spine:${t.source}:${t.ref}`
+// Before the Spine: the last rounds alone, read once and moved over.
+const roundsKey = (t: Target) => `rounds:${t.source}:${t.ref}`
+type OldRound = {
+  id: string
+  ticket: string | null
+  at: number
+  kind: 'grilling' | 'dialog'
+  questions: (Omit<Question, 'body'> & { body?: string })[]
+  reply?: string
+}
+const fromOld = (r: OldRound): Line => ({
+  kind: 'round',
+  id: r.id,
+  at: r.at,
+  via: r.kind,
+  questions: r.questions.map(q => ({ ...q, body: q.body ?? '' })),
+  ...(r.reply !== undefined ? { reply: r.reply } : {}),
+  ticket: r.ticket,
+})
 
-const YES = /^(y|yes|yep|yeah|ok|okay|sure|agreed|go|s[iì]|certo|va bene|confermo|d'accordo|perfetto|esatto|👍)\b/i
+/** A ticket's Spine, or Charting's for `null`. */
+const linesOf = (lines: Line[], ticket: string | null): Step[] => lines.filter(l => l.ticket === ticket)
 
-/** Hands the person's reply out to the round's questions: `1. yes`, `Q2: no, …`, or one answer for all. */
-const applyReply = (round: Round, reply: string): Round => {
-  const known = new Set(round.questions.map(q => q.n))
-  const parts = new Map<string, string>()
-  let at: string | null = null
-  for (const line of reply.split('\n')) {
-    const m = /^\s*\**Q?(\d+)\**(?:\s*[).:\-–—]|\s+)\s*(.*)$/i.exec(line)
-    if (m && known.has(m[1] ?? '')) {
-      at = m[1] ?? null
-      if (at) parts.set(at, (m[2] ?? '').trim())
-    } else if (at && line.trim()) parts.set(at, `${parts.get(at) ?? ''} ${line.trim()}`.trim())
+/**
+ * Past the cap, the oldest lookups go first, never a Level or a Wrap-up; past that, the oldest lines
+ * of closed tickets, never the open ticket's or Charting's.
+ */
+const capped = (lines: Line[], map: MapView | null, open: string | null): Line[] => {
+  const closed = new Set((map?.tickets ?? []).filter(t => t.isClosed).map(t => t.id))
+  const out = [...lines]
+  while (out.length > LINES_KEPT) {
+    let i = out.findIndex(l => l.kind === 'lookup')
+    if (i < 0) i = out.findIndex(l => l.ticket !== null && l.ticket !== open && closed.has(l.ticket))
+    if (i < 0) break
+    out.splice(i, 1)
   }
-  const whole = reply.trim()
-  const forAll = parts.size === 0 && (round.questions.length === 1 || YES.test(whole)) ? whole : undefined
-  return {
-    ...round,
-    reply: whole,
-    questions: round.questions.map(q => {
-      const said = parts.get(q.n) ?? forAll
-      return said === undefined ? q : { ...q, answer: said, isAccepted: YES.test(said) }
-    }),
-  }
+  return out
 }
 
-const storeKey = (t: Target) => `rounds:${t.source}:${t.ref}`
+const saveLines = async ($: EngineInterface) => {
+  const { target, lines } = await current($)
+  if (target) await $.store.set(spineKey(target), lines)
+}
 
-const saveRounds = async ($: EngineInterface) => {
-  const { target, rounds } = await current($)
-  if (target) await $.store.set(storeKey(target), rounds.slice(-ROUNDS_KEPT))
+/** The lines stored for a map; a map kept before the Spine has its rounds moved over, once. */
+const storedLines = async ($: EngineInterface, target: Target): Promise<Line[]> => {
+  const stored = (await $.store.get(spineKey(target))) as Line[] | undefined
+  if (stored) return stored
+  const old = (await $.store.get(roundsKey(target))) as OldRound[] | undefined
+  if (!old) return []
+  const lines = old.map(fromOld)
+  await $.store.set(spineKey(target), lines)
+  await $.store.delete(roundsKey(target))
+  return lines
+}
+
+// ── The Run: the stretch of a conversation that works a map ──
+
+let shownStatus: string | undefined
+
+/** Inside a Run, the line the claimed ticket's Spine (or Charting's) stands at; none outside. */
+const syncStatus = async ($: EngineInterface) => {
+  const run = await runOf($)
+  let text: string | undefined
+  if (run) {
+    const steps = linesOf((await current($)).lines, run.ticket?.id ?? null)
+    const subject = run.ticket ? cut(run.ticket.title, 32) : 'charting'
+    const rounds = steps.filter((s): s is RoundStep => s.kind === 'round')
+    const last = rounds.at(-1)
+    const step = lastTurn(steps)
+    const left = last ? last.questions.filter(q => markOf(q, last) === 'open').length : 0
+    text =
+      step?.kind === 'wrap' && step.reply === undefined
+        ? `${subject} · confirm the shared understanding`
+        : last && isWaiting(last)
+          ? `${subject} · L${rounds.length} · ${left} open`
+          : last
+            ? `${subject} · L${rounds.length} · next frontier`
+            : `${subject} · starting`
+  }
+  if (text === shownStatus) return
+  shownStatus = text
+  $.ui.status(text)
+}
+
+const endRun = async ($: EngineInterface) => {
+  await update($, running, () => null)
+  await syncStatus($)
+}
+
+/** A claim seen in the Run: its lines go to that ticket until it closes. */
+const claim = async ($: EngineInterface, id: string) => {
+  if (!(await runOf($))) return
+  const { map } = await current($)
+  const title = map?.tickets.find(t => t.id === id)?.title ?? `#${id}`
+  await update($, running, r => (r ? { ticket: { id, title }, claimedAt: Date.now() } : r))
+  await syncStatus($)
 }
 
 // ── Following a map ──
@@ -335,6 +391,12 @@ const refresh = async ($: EngineInterface): Promise<void> => {
           const tickets = map.tickets.map(t => (t.answer || !t.isClosed ? t : { ...t, answer: kept.get(t.id) }))
           return { ...w, map: { ...map, tickets }, error: null, refreshedAt: Date.now() }
         })
+        // The ticket worked on closed: later lines land on Charting until the next claim.
+        const run = await runOf($)
+        if (run?.ticket && map.tickets.find(t => t.id === run.ticket?.id)?.isClosed) {
+          await update($, running, r => (r ? { ...r, ticket: null } : r))
+          await syncStatus($)
+        }
       } catch (err) {
         await update($, way, w => ({ ...w, error: String(err instanceof Error ? err.message : err) }))
       }
@@ -348,13 +410,15 @@ const refresh = async ($: EngineInterface): Promise<void> => {
 const follow = async ($: EngineInterface, target: Target) => {
   const was = (await current($)).target
   if (was?.source === target.source && was.ref === target.ref) return refresh($)
-  const stored = ((await $.store.get(storeKey(target))) as Round[] | undefined) ?? []
+  const stored = await storedLines($, target)
   await update($, way, w => {
-    const ids = new Set(w.rounds.map(r => r.id))
-    const rounds = [...stored.filter(r => !ids.has(r.id)), ...w.rounds].sort((a, b) => a.at - b.at)
-    return { ...w, target, map: null, focus: null, working: null, rounds, error: null }
+    // Charting held before the map existed joins it; another map's lines stay with that map.
+    const carried = w.target ? [] : w.lines
+    const ids = new Set(carried.map(l => l.id))
+    const lines = [...stored.filter(l => !ids.has(l.id)), ...carried].sort((a, b) => a.at - b.at)
+    return { ...w, target, map: null, focus: null, lines, turned: [], error: null }
   })
-  await saveRounds($)
+  await saveLines($)
   void $.ui.open({ id: PANE, title: TITLE })
   return refresh($)
 }
@@ -399,12 +463,34 @@ const quietly = async (work: () => Promise<unknown>) => {
   }
 }
 
-const addRound = async ($: EngineInterface, round: Omit<Round, 'ticket' | 'id'>) => {
-  await update($, way, w => ({
-    ...w,
-    rounds: [...w.rounds, { ...round, id: `r${round.at}-${w.rounds.length}`, ticket: w.working }].slice(-ROUNDS_KEPT),
-  }))
-  await saveRounds($)
+/**
+ * Writes the Run's lines: `fn` gets them with the ticket a new line goes to (null for Charting) and
+ * the map. Outside a Run nothing lands: a map followed by hand keeps no Spine.
+ */
+const record = async ($: EngineInterface, fn: (lines: Line[], ticket: string | null, map: MapView | null) => Line[]) => {
+  const run = await runOf($)
+  if (!run) return
+  const ticket = run.ticket?.id ?? null
+  await update($, way, w => ({ ...w, lines: capped(fn(w.lines, ticket, w.map), w.map, ticket) }))
+  await saveLines($)
+}
+
+const mapLine = (lines: Line[], id: string, fn: (l: Line) => Line) => lines.map(l => (l.id === id ? fn(l) : l))
+
+/** The newest line, when it is the given ticket's: what a read or a term folds into. */
+const lastOf = (lines: Line[], ticket: string | null) => {
+  const last = lines.at(-1)
+  return last?.ticket === ticket ? last : undefined
+}
+
+/** Once the map has a ticket, Charting keeps no lookups: those are a session reading the map to choose one. */
+const keepsLookups = (ticket: string | null, map: MapView | null) => ticket !== null || !map?.tickets.length
+
+// A new Level takes the focus: every Level unfolded by hand folds again.
+const addLevel = async ($: EngineInterface, round: RoundStep) => {
+  await record($, (lines, ticket) => [...lines, { ...round, ticket }])
+  await update($, way, w => ({ ...w, turned: [] }))
+  await syncStatus($)
   void $.ui.open({ id: PANE, title: TITLE })
 }
 
@@ -427,12 +513,19 @@ export const register: Register = on => {
       argumentHint: '[<issue> | <.scratch/effort> | refresh | clear]',
     })
     $.clock.every(POLL_MS, () => void refresh($))
-    const { target, rounds } = await current($)
-    if (target || rounds.length) {
+    const { target, lines } = await current($)
+    if (target || lines.length) {
       void $.ui.open({ id: PANE, title: TITLE })
       void refresh($)
     }
+    shownStatus = undefined
+    await quietly(() => syncStatus($))
+    return next(e)
+  })
 
+  // `/clear` ends the conversation, and the Run with it; compact, resume and fork keep it.
+  on('session.end', async ($, e, next) => {
+    if (e.reason === 'clear') await quietly(() => endRun($))
     return next(e)
   })
 
@@ -440,6 +533,7 @@ export const register: Register = on => {
     const arg = e.args.trim()
     if (arg === 'clear') {
       await update($, way, () => EMPTY)
+      await endRun($)
       return { text: 'Wayfinder pane cleared.' }
     }
     await $.ui.open({ id: PANE, title: TITLE })
@@ -460,68 +554,120 @@ export const register: Register = on => {
     return { text: `Following the map at ${named.source === 'github' ? `#${named.ref}` : named.ref}.` }
   })
 
-  // /wayfinder with a map works through it; with a loose idea it charts one, found once it is created.
+  // /wayfinder starts a Run: with a map it works through it; with a loose idea it charts one, found once it is created.
+  // A grill the person asks for by name ends it.
   on('skill.prompt', async ($, e, next) => {
     const name = e.skill.replace(/^.*:/, '')
     if (name === 'wayfinder')
       await quietly(async () => {
+        await update($, running, r => r ?? { ticket: null, claimedAt: null })
         const args = /ARGUMENTS:\s*(.*)$/m.exec(e.text)?.[1] ?? ''
         const named = targetIn(args)
         if (named) await follow($, named)
         else void $.ui.open({ id: PANE, title: TITLE })
+        await syncStatus($)
       })
+    if (name === 'grill-me' || name === 'grill-with-docs') await quietly(() => endRun($))
     return next(e)
   })
 
-  // The person's answer to the newest round still waiting for one.
+  // The person's reply: the answers to the newest Level still waiting, or their word on the Wrap-up.
   on('prompt.submit', async ($, e, next) => {
     if (!e.command && !e.isMeta && e.text.trim())
       await quietly(async () => {
-        const { rounds } = await current($)
-        const last = rounds.at(-1)
-        if (!last || last.kind !== 'grilling' || last.reply !== undefined) return
-        await update($, way, w => ({
-          ...w,
-          rounds: w.rounds.map(r => (r.id === last.id ? applyReply(r, e.text) : r)),
-        }))
-        await saveRounds($)
+        const text = e.text.trim()
+        await record($, (lines, ticket) => {
+          const last = lastTurn(linesOf(lines, ticket))
+          if (last?.kind === 'round' && last.reply === undefined)
+            return mapLine(lines, last.id, l => ({ ...applyReply(last, text), ticket: l.ticket }))
+          if (last?.kind === 'wrap' && last.reply === undefined)
+            return mapLine(lines, last.id, l => ({ ...settleWrap(last, text), ticket: l.ticket }))
+          return lines
+        })
+        await syncStatus($)
       })
     return next(e)
   })
 
-  // A grilling round is the end of a main-loop turn: the questions, then a wait for the person.
+  // A Level is a main-loop turn that ends on questions; one that ends without them, once answered, is the Wrap-up.
   on('turn.complete', async ($, e, next) => {
     const done = await next(e)
     if (!e.agentId && e.reason === 'answer')
       await quietly(async () => {
         const questions = parseRound(e.answer)
-        if (questions.length) await addRound($, { at: Date.now(), kind: 'grilling', questions })
+        if (questions.length)
+          return addLevel($, { kind: 'round', id: newId('r'), at: Date.now(), via: 'grilling', questions })
+        await record($, (lines, ticket) =>
+          isWrapDue(linesOf(lines, ticket))
+            ? [...lines, { kind: 'wrap', id: newId('w'), at: Date.now(), text: cut(plain(e.answer), 600), ticket }]
+            : lines,
+        )
+        await syncStatus($)
       })
     return done
   })
 
   on('tool.call', async ($, e, next) => {
-    const ran = await next(e)
-    if (e.agentId || ('deny' in ran && ran.deny)) return ran
+    if (e.agentId) return next(e)
+    const isRun = (await runOf($)) !== null
 
-    if (e.tool === 'AskUserQuestion' && !ran.isError)
+    // A fact the agent sends a sub-agent for: one Trace, running until the sub-agent reports.
+    let agent: string | null = null
+    if (isRun && e.tool === 'Agent') {
+      const id = newId('l')
+      agent = id
+      await quietly(() =>
+        record($, (lines, ticket, map) =>
+          keepsLookups(ticket, map)
+            ? [...lines, { kind: 'lookup', id, at: Date.now(), label: plain(e.description), isAgent: true, count: 1, isDone: false, ticket }]
+            : lines,
+        ),
+      )
+    }
+
+    const path = e.tool === 'Write' || e.tool === 'Edit' ? e.file_path : ''
+    const isDoc = isRun && isDocPath(path)
+    const before = e.tool === 'Write' && isDoc ? await $.fs.read(path).catch(() => null) : null
+    const wasClaimed = new Set(((await current($)).map?.tickets ?? []).filter(t => t.isClaimed).map(t => t.id))
+
+    const ran = await next(e)
+    if (agent) {
+      const id = agent
+      await quietly(() => record($, lines => mapLine(lines, id, l => (l.kind === 'lookup' ? { ...l, isDone: true } : l))))
+    }
+    if (('deny' in ran && ran.deny) || ran.isError) return ran
+
+    if (isRun && e.tool === 'AskUserQuestion')
+      await quietly(() => addLevel($, dialogRound(e.questions, ran.result, newId('r'), Date.now())))
+
+    // Reads and searches between Levels fold into one lookup.
+    const looked = isRun ? lookupOf(e.tool, e as unknown as Record<string, unknown>) : null
+    if (looked !== null)
+      await quietly(() =>
+        record($, (lines, ticket, map) => {
+          if (!keepsLookups(ticket, map)) return lines
+          const last = lastOf(lines, ticket)
+          const label = cut(looked, 60)
+          return foldsInto(last)
+            ? mapLine(lines, last.id, l => (l.kind === 'lookup' ? { ...l, count: l.count + 1, label } : l))
+            : [...lines, { kind: 'lookup', id: newId('l'), at: Date.now(), label, isAgent: false, count: 1, isDone: true, ticket }]
+        }),
+      )
+
+    // The glossary's resolved terms and the ADRs, as they are written.
+    if (isDoc && (e.tool === 'Write' || e.tool === 'Edit'))
       await quietly(async () => {
-        const answers = ((ran.result as { answers?: Record<string, string> } | undefined)?.answers ?? {}) as Record<
-          string,
-          string
-        >
-        const questions: Question[] = e.questions.map((q, i) => {
-          const answer = answers[q.question]
-          return {
-            n: String(i + 1),
-            title: plain(q.question),
-            recommended: '',
-            options: q.options.map(o => o.label),
-            ...(answer ? { answer } : {}),
-          }
+        const trace =
+          e.tool === 'Write'
+            ? docTraceOf(path, e.content, before, false, newId('d'), Date.now())
+            : docTraceOf(path, e.new_string, e.old_string, true, newId('d'), Date.now())
+        if (!trace) return
+        await record($, (lines, ticket) => {
+          const last = lastOf(lines, ticket)
+          return trace.kind === 'term' && termsFoldInto(last, path)
+            ? mapLine(lines, last.id, l => (l.kind === 'term' ? { ...l, terms: [...new Set([...l.terms, ...trace.terms])] } : l))
+            : [...lines, { ...trace, ticket }]
         })
-        const response = (ran.result as { response?: string } | undefined)?.response
-        await addRound($, { at: Date.now(), kind: 'dialog', questions, ...(response ? { reply: response } : {}) })
       })
 
     if (e.tool === 'Write' || e.tool === 'Edit')
@@ -531,7 +677,7 @@ export const register: Register = on => {
         const text = e.tool === 'Write' ? e.content : e.new_string
         const id = m[2] ? String(Number(m[2])) : null
         await follow($, { source: 'local', ref: m[1] ?? '' })
-        if (id && /^\s*\**status\**:?\**\s*claimed/im.test(text)) await update($, way, w => ({ ...w, working: id }))
+        if (id && /^\s*\**status\**:?\**\s*claimed/im.test(text)) await claim($, id)
       })
 
     if (e.tool === 'Bash')
@@ -544,12 +690,20 @@ export const register: Register = on => {
           if (made) return follow($, { source: 'github', ref: made })
         }
         const claimed = /gh issue edit\s+#?(\d+)[^|;&]*--add-assignee/.exec(cmd)?.[1]
-        if (claimed && target?.source === 'github') await update($, way, w => ({ ...w, working: claimed }))
         const touches =
           target?.source === 'github'
             ? /\bgh (issue|api)\b/.test(cmd) && !/gh issue (view|list)\b/.test(cmd)
             : target?.source === 'local' && /\.scratch\//.test(cmd)
-        if (touches) void refresh($)
+        if (!touches) return
+        if (target?.source === 'github' && !claimed) return void refresh($)
+        await refresh($)
+        if (claimed) return claim($, claimed)
+        // A local claim made from the shell: a ticket file the command named, claimed now and not before.
+        if (target?.source === 'local') {
+          const named = new Set([...cmd.matchAll(/issues\/(\d+)/g)].map(n => String(Number(n[1]))))
+          const now = (await current($)).map?.tickets.find(t => named.has(t.id) && t.isClaimed && !t.isClosed && !wasClaimed.has(t.id))
+          if (now) await claim($, now.id)
+        }
       })
 
     return ran
@@ -572,7 +726,10 @@ export const register: Register = on => {
     // The graph needs a surface module's region: the terminal and the desktop draw one.
     const Client =
       (e.surface === 'terminal' || e.surface === 'desktop') && 'Client' in elements ? elements.Client : undefined
+    const el = { Box, Text, Button }
     const w = await current($)
+    const run = await runOf($)
+    const mine = run?.ticket?.id ?? null
     const now = Date.now()
     const inner = Math.max(24, e.props.bodyColumns - 4)
     const map = w.map
@@ -661,12 +818,36 @@ export const register: Register = on => {
     }
     walk(null, '')
 
+    // ── The Spines: each ticket's in its card, Charting's in the map card ──
+    const turn = (id: string) =>
+      update($, way, g => ({ ...g, turned: g.turned.includes(id) ? g.turned.filter(k => k !== id) : [...g.turned, id] }))
+    const spineBlock = (title: string, steps: Step[], keyPrefix: string, isClosed: boolean, isLive: boolean) => (
+      <Box flexDirection="column" marginTop={1}>
+        {spineHeading(el, title, steps, isClosed)}
+        {spineRows(el, {
+          steps,
+          keyPrefix,
+          isClosed,
+          isLive,
+          isAllUnfolded: w.isAllUnfolded,
+          turned: w.turned,
+          onTurn: turn,
+          width: inner,
+          now,
+        })}
+      </Box>
+    )
+    // Once the map has tickets, Charting is folded as a closed ticket's, unless a Level came since the last claim.
+    const charting = linesOf(w.lines, null)
+    const chartingLevel = charting.filter(l => l.kind === 'round').at(-1)?.at ?? 0
+    const isChartingLive = !!run && !run.ticket && (!tickets.length || chartingLevel > (run.claimedAt ?? 0))
+
     const toggleFocus = async (id: string) => {
       await update($, way, g => ({ ...g, focus: g.focus === id ? null : id }))
       await quietly(() => fetchAnswer($, id))
     }
     const noteOf = (t: Ticket, s: State) => {
-      if (s === 'claimed') return t.id === w.working ? 'you' : 'claimed'
+      if (s === 'claimed') return t.id === mine ? 'you' : 'claimed'
       if (s === 'blocked') {
         const open = t.blockedBy.filter(isOpen)
         return `after ${cut(name(open[0] ?? ''), 18)}${open.length > 1 ? ` +${open.length - 1}` : ''}`
@@ -712,7 +893,7 @@ export const register: Register = on => {
     const ticketCard = (t: Ticket) => {
       const s = stateOf(t)
       const blocks = tickets.filter(x => x.blockedBy.includes(t.id))
-      const rounds = w.rounds.filter(r => r.ticket === t.id)
+      const steps = linesOf(w.lines, t.id)
       return (
         <Box flexDirection="column">
           {heading(
@@ -745,11 +926,7 @@ export const register: Register = on => {
               <Text wrap="wrap">{t.answer ? cut(t.answer, inner * 6) : 'Reading the resolution…'}</Text>
             </Box>
           )}
-          {rounds.length > 0 && (
-            <Text dimColor>
-              {rounds.length} grilling round{rounds.length > 1 ? 's' : ''}, g shows them
-            </Text>
-          )}
+          {steps.length > 0 && spineBlock('Spine', steps, `${t.id}-`, t.isClosed, !t.isClosed && t.id === mine)}
           <Box flexDirection="row" columnGap={1} marginTop={1} justifyContent="space-between">
             <Box flexShrink={1}>
               {/^https?:/.test(t.link) ? (
@@ -809,7 +986,7 @@ export const register: Register = on => {
         state: stateOf(t),
         layer: depthOf(t) + 1,
         isNext: t === next,
-        isMine: t.id === w.working,
+        isMine: t.id === mine,
       })),
       edges: tickets.flatMap(t =>
         t.blockedBy
@@ -895,116 +1072,6 @@ export const register: Register = on => {
       </Box>
     )
 
-    // ── grill: each round's questions as branches, the recommendation and what the person chose ──
-    const subject = (id: string | null) => (id === null ? (map?.destination ? 'destination' : 'charting') : name(id))
-    const shownRounds = (() => {
-      const mine = w.focus ? w.rounds.filter(r => r.ticket === w.focus) : w.rounds
-      return mine.slice(-6)
-    })()
-    const questionRows = (r: Round) =>
-      r.questions.map((q, qi) => {
-        const isLast = qi === r.questions.length - 1
-        const lead = isLast ? '   ' : '│  '
-        const waiting = q.answer === undefined && r.reply === undefined
-        const branches: RenderChildren[] = []
-        const leaves: { key: string; text: RenderChildren }[] = []
-        for (const [oi, o] of q.options.entries()) {
-          const isChosen = q.answer !== undefined && q.answer.split(/,\s*/).includes(o)
-          leaves.push({
-            key: `o${oi}`,
-            text: (
-              <Text dimColor={!isChosen} bold={isChosen}>
-                <Text color={isChosen ? STATE_COLOR.resolved : EDGE}>{isChosen ? '● ' : '○ '}</Text>
-                {o}
-              </Text>
-            ),
-          })
-        }
-        if (q.recommended)
-          leaves.push({
-            key: 'rec',
-            text: (
-              <Text bold={q.isAccepted === true} dimColor={q.answer !== undefined && !q.isAccepted}>
-                <Text color={STATE_COLOR.frontier}>➡ </Text>
-                {q.recommended}
-                {q.isAccepted ? <Text color={STATE_COLOR.resolved}> ✓</Text> : ''}
-              </Text>
-            ),
-          })
-        if (q.answer !== undefined && !q.isAccepted && r.kind === 'grilling')
-          leaves.push({
-            key: 'ans',
-            text: (
-              <Text bold>
-                <Text color={ACCENT}>✎ </Text>
-                {q.answer}
-              </Text>
-            ),
-          })
-        if (q.answer !== undefined && r.kind === 'dialog' && !q.options.includes(q.answer))
-          leaves.push({
-            key: 'ans',
-            text: (
-              <Text bold>
-                <Text color={ACCENT}>✎ </Text>
-                {q.answer}
-              </Text>
-            ),
-          })
-        leaves.forEach((l, li) =>
-          branches.push(
-            <Text key={`${r.id}-${q.n}-${l.key}`} wrap="truncate-end">
-              <Text color={EDGE}>
-                {lead}
-                {li === leaves.length - 1 ? '└─ ' : '├─ '}
-              </Text>
-              {l.text}
-            </Text>,
-          ),
-        )
-        return (
-          <Box key={`${r.id}-${q.n}`} flexDirection="column">
-            <Text wrap="truncate-end">
-              <Text color={EDGE}>{isLast ? '└─ ' : '├─ '}</Text>
-              <Text color={waiting ? STATE_COLOR.frontier : q.answer !== undefined ? STATE_COLOR.resolved : FOG}>
-                {waiting ? '❓' : q.answer !== undefined ? '✓' : '·'}{' '}
-              </Text>
-              <Text bold>Q{q.n}</Text> {q.title}
-            </Text>
-            {branches}
-          </Box>
-        )
-      })
-    const grill = (
-      <Box flexDirection="column">
-        {heading(
-          'design tree',
-          <Text dimColor>{w.focus ? cut(subject(w.focus), 28) : `${w.rounds.length} rounds`}</Text>,
-        )}
-        {shownRounds.length === 0 && (
-          <Text dimColor>No grilling yet: each round of questions shows here, with the answers.</Text>
-        )}
-        {shownRounds.map((r, ri) => (
-          <Box key={r.id} flexDirection="column" marginTop={ri ? 1 : 0}>
-            <Text wrap="truncate-end">
-              <Text color={TYPE_COLOR.grilling}>◇ </Text>
-              <Text bold>{subject(r.ticket)}</Text>
-              <Text dimColor>
-                {' '}
-                · {r.kind === 'dialog' ? 'dialog' : 'round'} · {r.questions.length}q · {since(r.at, now)} ago
-              </Text>
-            </Text>
-            {questionRows(r)}
-            {r.reply !== undefined && r.questions.every(q => q.answer === undefined) && (
-              <Text dimColor italic wrap="truncate-end">
-                {'   '}⏎ {r.reply}
-              </Text>
-            )}
-          </Box>
-        ))}
-      </Box>
-    )
-
     const tab = (key: Tab, label: string, hotkey: string, n?: number) => (
       <Button key={`tab-${key}`} plain hotkey={hotkey} onPress={() => update($, way, g => ({ ...g, tab: key }))}>
         {w.tab === key ? (
@@ -1042,7 +1109,7 @@ export const register: Register = on => {
               </Text>
             ) : (
               <Text dimColor wrap="wrap">
-                {w.rounds.length
+                {charting.length
                   ? 'Charting: the map is followed once it is created.'
                   : '/waymap finds the map here, or /waymap <issue | .scratch/effort>'}
               </Text>
@@ -1053,6 +1120,8 @@ export const register: Register = on => {
                 {cut(map.destination, inner * 2)}
               </Text>
             )}
+            {charting.length > 0 &&
+              spineBlock('Spine · charting', charting, 'charting-', tickets.length > 0 && !isChartingLive, !!run && !run.ticket)}
             {tickets.length > 0 && (
               <Box flexDirection="column" marginTop={1}>
                 {bar()}
@@ -1075,19 +1144,28 @@ export const register: Register = on => {
             <Box flexDirection="row" columnGap={1} marginTop={1}>
               {tab('route', 'map', 'm')}
               {tab('decisions', 'decisions', 'd', map?.decisions.length)}
-              {tab('grill', 'grill', 'g', w.rounds.length)}
             </Box>
           </Box>,
         )}
 
-        {card(w.tab, w.tab === 'route' ? route : w.tab === 'decisions' ? decisions : grill)}
+        {card(w.tab, w.tab === 'route' ? route : decisions)}
         {w.tab === 'route' && focused && card('ticket', ticketCard(focused))}
 
         {w.error && <Text color="#e5737b"> {w.target?.source === 'github' ? 'gh' : 'read'}: {w.error}</Text>}
         <Box flexDirection="row" justifyContent="space-between" paddingX={1}>
           <Box flexDirection="row" columnGap={1}>
+            {(charting.length > 0 || (w.tab === 'route' && focused && linesOf(w.lines, focused.id).length > 0)) &&
+              foldAllButton(el, w.isAllUnfolded, () => update($, way, g => ({ ...g, isAllUnfolded: !g.isAllUnfolded, turned: [] })))}
             <Button key="refresh" label="Refresh" hotkey="r" onPress={() => refresh($)} />
-            <Button key="clear" label="Clear" hotkey="c" onPress={() => update($, way, () => EMPTY)} />
+            <Button
+              key="clear"
+              label="Clear"
+              hotkey="c"
+              onPress={async () => {
+                await update($, way, () => EMPTY)
+                await endRun($)
+              }}
+            />
           </Box>
           {w.refreshedAt !== null && <Text dimColor>↻ {since(w.refreshedAt, now)} ago</Text>}
         </Box>

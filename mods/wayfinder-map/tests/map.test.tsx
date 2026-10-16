@@ -147,43 +147,6 @@ test('the route draws the map as a tree of tickets, with the next one on the fro
   }
 })
 
-test('a grilling round becomes a design tree, with what the person chose', async ($, on) => {
-  mock.store(on)
-  on('turn.complete', (_$, e) => ({ text: e.answer }))
-  on('prompt.submit', (_$, e) => ({ text: e.text }))
-  on('ui.open', () => ({ value: { isPlaced: true as const } }))
-
-  const answer = [
-    'Round one.',
-    '',
-    '❓ **Q1** - **Storage**: Where do rows live?',
-    '- SQLite',
-    '- Postgres',
-    '',
-    '➡️ SQLite, with WAL',
-    '',
-    '---',
-    '',
-    '❓ **Q2** - **Sync trigger**: When does a device sync?',
-    '',
-    '➡️ On every write',
-  ].join('\n')
-  await $.turn.complete({ answer, durationMs: 1, isAborted: false, turnId: 't1', reason: 'answer' })
-  await $.prompt.submit({ text: '1. yes\n2. no, every minute', wait: false, origin: { kind: 'composer' } })
-
-  const ui = await $.ui.mount({ plugin: 'wayfinder-map', surface: 'terminal', ...PANE })
-  await ui.press({ key: 'tab-grill' })
-  const has = async (text: RegExp) => expect(await ui.find({ type: 'Text', text }), String(text)).toBeDefined()
-  await has(/design tree/)
-  await has(/◇ charting · round · 2q/)
-  await has(/├─ ✓ Q1 Storage/)
-  await has(/│  ├─ ○ SQLite/)
-  await has(/│  └─ ➡ SQLite, with WAL ✓/)
-  await has(/└─ ✓ Q2 Sync trigger/)
-  await has(/✎ no, every minute/)
-  await ui.unmount()
-})
-
 test('a local map is read from .scratch, and a claim there marks the ticket as yours', async ($, on) => {
   mock.store(on)
   const files: Record<string, string> = {
@@ -211,7 +174,10 @@ test('a local map is read from .scratch, and a claim there marks the ticket as y
   )
   on('tool.call', () => ({ result: { type: 'update', filePath: '', content: '' } as never }))
   on('ui.open', () => ({ value: { isPlaced: true as const } }))
+  on('skill.prompt', (_$, e) => ({ text: e.text }))
 
+  // A claim counts inside a Run, the stretch /wayfinder starts.
+  await $.skill.prompt({ skill: 'mattpocock-skills:wayfinder', text: 'A loose idea has arrived…\n\nARGUMENTS: ' })
   await $.tool.call({
     tool: 'Write',
     file_path: '/repo/.scratch/sync/issues/02-log.md',

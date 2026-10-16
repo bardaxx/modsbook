@@ -87,7 +87,7 @@ test('a /grill-me round hangs from the spine, the next level waits for the perso
     await has(/┃ │ ➡ Last write wins, with a banner/)
     await has(/▼ 1 open · reply by number/)
 
-    // A digit unfolds a level.
+    // A press on its heading unfolds a level.
     await ui.press({ key: 'level-1' })
     await has(/● L1 · 2\/2 settled ▾/)
     await has(/┃ │ ○ SQLite/)
