@@ -142,3 +142,22 @@ test('the slots setting draws the meter against its cap', { options: { slots: 3 
   expect(await ui.find({ type: 'Text', text: /1\/3 slots/ })).toBeDefined()
   await ui.unmount()
 })
+
+test('state kept from an older version draws no undefined cap', async ($, on) => {
+  // What the previous version stored: no slotCap, no integration.
+  const old = {
+    stage: null,
+    lastSkill: null,
+    spec: null,
+    pr: null,
+    tickets: [],
+    agents: [],
+    error: null,
+    refreshedAt: null,
+  }
+  on('state.get', () => ({ value: { value: old as never, version: 1 } }))
+  const ui = await $.ui.mount({ plugin: 'spec-flow', surface: 'terminal', ...PANE })
+  expect(await ui.find({ type: 'Text', text: /undefined/ })).toBeUndefined()
+  expect(await ui.find({ type: 'Text', text: /none implementing/ })).toBeDefined()
+  await ui.unmount()
+})

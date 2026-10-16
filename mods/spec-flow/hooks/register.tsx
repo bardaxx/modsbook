@@ -70,6 +70,9 @@ const EMPTY: Flow = {
 }
 const flow = atom({ plugin: 'spec-flow', key: 'flow' } as const, EMPTY)
 
+// State a session kept from an older version of the mod lacks the fields added since.
+const current = async ($: EngineInterface): Promise<Flow> => ({ ...EMPTY, ...(await read($, flow)) })
+
 // The idea-to-ship spine (aihero.dev/skills) and the skills that move it.
 const STAGES: { stage: Stage; label: string }[] = [
   { stage: 'grill', label: 'grill' },
@@ -233,7 +236,7 @@ const blockersInBody = (body: string): number[] | null => {
 }
 
 const refresh = async ($: EngineInterface) => {
-  const { spec } = await read($, flow)
+  const { spec } = await current($)
   if (!spec) return
   try {
     const head = JSON.parse(await gh($, ['issue', 'view', String(spec.number), '--json', 'title'])) as {
@@ -268,7 +271,7 @@ const refresh = async ($: EngineInterface) => {
 
     // Progress lives on GitHub, whichever session did the work.
     let integration: IntegrationPr | null = null
-    const found = await findPr($, spec.number, (await read($, flow)).pr)
+    const found = await findPr($, spec.number, (await current($)).pr)
     if (found) {
       const view = JSON.parse(
         await gh($, ['pr', 'view', String(found.number), '--json', 'statusCheckRollup']),
@@ -343,7 +346,7 @@ export const register: Register = (on, options) => {
       argumentHint: '[spec <n> | refresh | clear]',
     })
     $.clock.every(POLL_MS, () => void refresh($))
-    const { spec, stage } = await read($, flow)
+    const { spec, stage } = await current($)
     if (spec || stage) void $.ui.open({ id: PANE, title: TITLE })
 
     return next(e)
@@ -388,7 +391,7 @@ export const register: Register = (on, options) => {
     if ('deny' in started && started.deny) return started
     await quietly(async () => {
       const id = started.agentId ?? e.tool_use_id
-      const spec = (await read($, flow)).spec?.number
+      const spec = (await current($)).spec?.number
       const row: AgentRow = {
         id,
         role: roleOf(e.description, e.subagentType, e.prompt),
@@ -423,7 +426,7 @@ export const register: Register = (on, options) => {
           ...f,
           agents: f.agents.map(a => (a.id === id ? { ...a, status, report, endedAt: Date.now() } : a)),
         }))
-        const row = (await read($, flow)).agents.find(a => a.id === id)
+        const row = (await current($)).agents.find(a => a.id === id)
         if (row?.role === 'merger' || row?.role === 'implementer') void refresh($)
       })
 
@@ -451,7 +454,7 @@ export const register: Register = (on, options) => {
         const pr = /pull\/(\d+)/.exec(out)?.[1] ?? /pr:wait\s+(\d+)/.exec(cmd)?.[1]
         if (pr) await update($, flow, f => ({ ...f, pr: Number(pr) }))
         if (/gh pr merge/.test(cmd)) await update($, flow, f => ({ ...f, stage: 'ship' as const }))
-        const { stage, spec } = await read($, flow)
+        const { stage, spec } = await current($)
         if (/gh issue create/.test(cmd)) {
           const made = issueIn(out)
           if (stage === 'spec' && made !== null) await setSpec($, made)
@@ -464,7 +467,7 @@ export const register: Register = (on, options) => {
 
   on('ui.render', { component: 'Pane', requestId: PANE }, async ($, e) => {
     const { Box, Text, Button } = $.ui.resolve(e)
-    const f = await read($, flow)
+    const f = await current($)
     const now = Date.now()
     const inner = Math.max(20, e.props.bodyColumns - 4)
     const merged = new Set(
