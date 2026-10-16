@@ -1,6 +1,6 @@
 {
   "name": "wayfinder-map",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "Side pane for /wayfinder: the map as a navigable graph of decision tickets from start to destination, the decisions so far, the fog, and the grilling's design tree",
   "author": {
     "name": "bardaxx"

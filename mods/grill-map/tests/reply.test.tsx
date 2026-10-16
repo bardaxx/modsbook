@@ -83,7 +83,7 @@ test('a yes with a Reserve pushes the Wrap-up back; the next Wrap-up closes the 
 
   await $.prompt.submit(say('sì, ma aggiungi i retry'))
   const ui = await $.ui.mount({ plugin: 'grill-map', surface: 'terminal', ...PANE })
-  const has = async (text: RegExp) => expect(await ui.find({ type: 'Text', text }), String(text)).toBeDefined()
+  const has = async (text: RegExp) => expect(await ui.find({ text }), String(text)).toBeDefined()
   await has(/◎ wrap-up, pushed back/)
   expect(await ui.find({ type: 'Text', text: /^ done $/ }), 'still open').toBeUndefined()
 
@@ -113,7 +113,7 @@ test('a Level folds by a press on its heading, never by a digit; `a` is a labell
     expect(await ui.find({ type: 'Text', text: /folds a level/ }), 'no digit hint').toBeUndefined()
     await ui.press({ key: 'fold-all' })
     expect((await ui.find({ key: 'fold-all' }))?.props).toMatchObject({ label: 'Fold' })
-    expect(await ui.find({ type: 'Text', text: /● L1 · 2\/2 settled ▾/ })).toBeDefined()
+    expect(await ui.find({ text: /● L1 · 2\/2 settled ▾/ })).toBeDefined()
     await ui.press({ key: 'fold-all' })
     await ui.unmount()
   }

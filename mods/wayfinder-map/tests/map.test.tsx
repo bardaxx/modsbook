@@ -70,7 +70,7 @@ test('the route draws the map as a tree of tickets, with the next one on the fro
   // The surfaces with no surface module's region draw the route as an indented tree.
   for (const surface of ['vscode', 'mobile'] as const) {
     const ui = await $.ui.mount({ plugin: 'wayfinder-map', surface, ...PANE })
-    const has = async (text: RegExp) => expect(await ui.find({ type: 'Text', text }), String(text)).toBeDefined()
+    const has = async (text: RegExp) => expect(await ui.find({ text }), String(text)).toBeDefined()
     await has(/map #42/)
     await has(/^Offline sync$/)
     await has(/A spec for offline sync/)
@@ -185,7 +185,7 @@ test('a local map is read from .scratch, and a claim there marks the ticket as y
   })
 
   const ui = await $.ui.mount({ plugin: 'wayfinder-map', surface: 'terminal', ...PANE })
-  const has = async (text: RegExp) => expect(await ui.find({ type: 'Text', text }), String(text)).toBeDefined()
+  const has = async (text: RegExp) => expect(await ui.find({ text }), String(text)).toBeDefined()
   await has(/^sync $/)
   const inGraph = async (text: RegExp) =>
     expect(await ui.find({ type: 'Text', text, in: 'graph' }), String(text)).toBeDefined()

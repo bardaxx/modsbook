@@ -50,7 +50,7 @@ test('the pane shows the spec, its tickets and the implementer working on one', 
   on('ui.open', () => ({ value: { isPlaced: true as const } }))
 
   await $.command.run({
-    command: 'flow',
+    command: 'specmap',
     args: 'spec 239',
     origin: { kind: 'composer' },
     presentation: { isFullscreen: true, columns: 160 },
@@ -73,7 +73,8 @@ test('the pane shows the spec, its tickets and the implementer working on one', 
       await ui.find({ type: 'Text', text: /^Checks popover$/ }),
       String(/^Checks popover$/),
     ).toBeDefined()
-    expect(await ui.find({ type: 'Text', text: /^implementer$/ }), String(/^implementer$/)).toBeDefined()
+    const buttons = (await ui.findAll({ type: 'Button' })).map(b => b.props.label)
+    expect(buttons, 'the agent row presses on its role').toContain('implementer')
     expect(await ui.find({ type: 'Text', text: /Bash|starting/ }), String(/Bash|starting/)).toBeDefined()
     expect(await ui.find({ type: 'Text', text: /1 implementing/ }), String(/1 implementing/)).toBeDefined()
     expect(await ui.find({ type: 'Text', text: /2 of 3 done/ }), String(/2 of 3 done/)).toBeDefined()
@@ -122,7 +123,7 @@ test('the slots setting draws the meter against its cap', { options: { slots: 3 
   on('ui.open', () => ({ value: { isPlaced: true as const } }))
 
   await $.command.run({
-    command: 'flow',
+    command: 'specmap',
     args: 'spec 239',
     origin: { kind: 'composer' },
     presentation: { isFullscreen: true, columns: 160 },

@@ -366,8 +366,8 @@ export const register: Register = (on, options) => {
 
   on('session.start', async ($, e, next) => {
     await $.command.register({
-      name: 'flow',
-      description: 'Show the spec-map pane (/flow spec <n>, /flow refresh, /flow clear)',
+      name: 'specmap',
+      description: 'Show the spec-map pane (/specmap spec <n>, /specmap refresh, /specmap clear)',
       argumentHint: '[spec <n> | refresh | clear]',
     })
     $.clock.every(POLL_MS, () => void refresh($))
@@ -377,7 +377,7 @@ export const register: Register = (on, options) => {
     return next(e)
   })
 
-  on('command.run', { command: 'flow' }, async ($, e) => {
+  on('command.run', { command: 'specmap' }, async ($, e) => {
     const [verb = '', arg = ''] = e.args.trim().split(/\s+/)
     if (verb === 'clear') {
       await update($, flow, () => EMPTY)
@@ -385,7 +385,7 @@ export const register: Register = (on, options) => {
     }
     if (verb === 'spec') {
       const n = issueIn(arg)
-      if (n === null) return { text: 'Usage: /flow spec <issue number>' }
+      if (n === null) return { text: 'Usage: /specmap spec <issue number>' }
       await $.ui.open({ id: PANE, title: TITLE })
       await setSpec($, n)
       return { text: `Following spec #${n}.` }
@@ -565,7 +565,7 @@ export const register: Register = (on, options) => {
     const count = (s: TicketState) => tickets.filter(t => t.state === s).length
     const done = count('done')
     const percent = tickets.length ? Math.round((done / tickets.length) * 100) : 0
-    // Followed with /flow spec, no skill set the stage: the tickets say where the work stands.
+    // Followed with /specmap spec, no skill set the stage: the tickets say where the work stands.
     const stage: Stage | null =
       f.stage ??
       (f.integration?.state === 'merged'
@@ -650,16 +650,14 @@ export const register: Register = (on, options) => {
       if (a.status !== 'running') {
         return (
           <Box key={`agent-${a.id}`} flexDirection="row" justifyContent="space-between">
-            <Box flexShrink={1}>
-              <Button key={`focus-${a.id}`} plain hotkey={digit} onPress={() => toggleFocus(a.id)}>
-                <Text dimColor={!isFocused} bold={isFocused} wrap="truncate-end">
-                  <Text color={a.status === 'done' ? STATE_COLOR.done : STATE_COLOR.failed}>
-                    {a.status === 'done' ? '✓' : '✗'}{' '}
-                  </Text>
-                  {a.role}
-                  {refs ? ` ${refs}` : ''} · {a.report || a.description}
-                </Text>
-              </Button>
+            <Box flexShrink={1} flexDirection="row">
+              <Button key={`focus-${a.id}`} plain hotkey={digit} dimColor={!isFocused} label={`${a.role}${refs ? ` ${refs}` : ''}`} onPress={() => toggleFocus(a.id)} />
+              <Text dimColor={!isFocused} bold={isFocused} wrap="truncate-end">
+                {' '}
+                <Text color={a.status === 'done' ? STATE_COLOR.done : STATE_COLOR.failed}>{a.status === 'done' ? '✓' : '✗'}</Text>
+                {' · '}
+                {a.report || a.description}
+              </Text>
             </Box>
             <Text dimColor> {age}</Text>
           </Box>
@@ -668,15 +666,13 @@ export const register: Register = (on, options) => {
       return (
         <Box key={`agent-${a.id}`} flexDirection="column" marginBottom={1}>
           <Box flexDirection="row" justifyContent="space-between">
-            <Box flexShrink={1}>
-              <Button key={`focus-${a.id}`} plain hotkey={digit} onPress={() => toggleFocus(a.id)}>
-                <Text wrap="truncate-end">
-                  <Text color={color}>{isFocused ? '◉ ' : '● '}</Text>
-                  <Text bold>{a.role}</Text>
-                  {refs ? <Text color={color}> {refs}</Text> : ''}
-                  <Text dimColor> · {a.description}</Text>
-                </Text>
-              </Button>
+            <Box flexShrink={1} flexDirection="row">
+              <Button key={`focus-${a.id}`} plain hotkey={digit} label={a.role} onPress={() => toggleFocus(a.id)} />
+              <Text wrap="truncate-end">
+                <Text color={color}>{isFocused ? ' ◉' : ' ●'}</Text>
+                {refs ? <Text color={color}> {refs}</Text> : ''}
+                <Text dimColor> · {a.description}</Text>
+              </Text>
             </Box>
             <Text>
               {counts(a)}
@@ -784,7 +780,7 @@ export const register: Register = (on, options) => {
                 {headline(f.spec.title)}
               </Text>
             ) : (
-              !f.spec && <Text dimColor>/flow spec &lt;n&gt; to follow one</Text>
+              !f.spec && <Text dimColor>/specmap spec &lt;n&gt; to follow one</Text>
             )}
             {f.integration ? (
               <Box flexDirection="row" justifyContent="space-between">

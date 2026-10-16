@@ -68,7 +68,7 @@ test('inside a Run: no status line of its own, one grill per claimed ticket, a c
   expect(world.statuses.at(-1)).toBeUndefined()
 
   const ui = await $.ui.mount({ plugin: 'grill-map', surface: 'terminal', ...PANE })
-  const has = async (text: RegExp) => expect(await ui.find({ type: 'Text', text }), String(text)).toBeDefined()
+  const has = async (text: RegExp) => expect(await ui.find({ text }), String(text)).toBeDefined()
   await has(/^The Spine under the tree fallback$/)
   await has(/^3\/3 $/)
   await has(/┃ ⌕ 1 lookup · register\.tsx/)

@@ -136,8 +136,8 @@ test('a claimed ticket\'s Levels, Traces and Wrap-up sit in its card; Charting\'
 
   for (const surface of ['mobile', 'terminal'] as const) {
     const ui = await $.ui.mount({ plugin: 'wayfinder-map', surface, ...PANE })
-    const has = async (text: RegExp) => expect(await ui.find({ type: 'Text', text }), `${surface} ${text}`).toBeDefined()
-    const hasNot = async (text: RegExp) => expect(await ui.find({ type: 'Text', text }), `${surface} ${text}`).toBeUndefined()
+    const has = async (text: RegExp) => expect(await ui.find({ text }), `${surface} ${text}`).toBeDefined()
+    const hasNot = async (text: RegExp) => expect(await ui.find({ text }), `${surface} ${text}`).toBeUndefined()
     expect(await ui.find({ key: 'tab-decisions' })).toBeDefined()
     expect(await ui.find({ key: 'tab-grill' }), 'the g tab is gone').toBeUndefined()
 
@@ -187,7 +187,7 @@ test('a claimed ticket\'s Levels, Traces and Wrap-up sit in its card; Charting\'
   await $.turn.complete(turn(CHARTING_ROUND.replace('Scope', 'Retries'), 't4'))
 
   const ui = await $.ui.mount({ plugin: 'wayfinder-map', surface: 'mobile', ...PANE })
-  const has = async (text: RegExp) => expect(await ui.find({ type: 'Text', text }), String(text)).toBeDefined()
+  const has = async (text: RegExp) => expect(await ui.find({ text }), String(text)).toBeDefined()
   // Charting is live again: a Level since the last claim, drawn whole.
   await has(/◆ L2 · waiting for you ▾/)
   await ui.press({ key: 'focus-1' })

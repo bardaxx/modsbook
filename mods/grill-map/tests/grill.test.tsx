@@ -65,8 +65,8 @@ test('a /grill-me round hangs from the spine, the next level waits for the perso
 
   for (const surface of ['terminal', 'desktop'] as const) {
     const ui = await $.ui.mount({ plugin: 'grill-map', surface, ...PANE })
-    const has = async (text: RegExp) => expect(await ui.find({ type: 'Text', text }), String(text)).toBeDefined()
-    const hasNot = async (text: RegExp) => expect(await ui.find({ type: 'Text', text }), String(text)).toBeUndefined()
+    const has = async (text: RegExp) => expect(await ui.find({ text }), String(text)).toBeDefined()
+    const hasNot = async (text: RegExp) => expect(await ui.find({ text }), String(text)).toBeUndefined()
     await has(/◆ grill-me/)
     await has(/^Offline sync$/)
     await has(/^ 2\/3 $/)
@@ -127,7 +127,7 @@ test('grill-with-docs: lookups, glossary terms and ADRs sit on the spine, and th
   await $.turn.complete(turn('So: rows live in SQLite with WAL and every write syncs. Is that our shared understanding?', 't2'))
 
   const ui = await $.ui.mount({ plugin: 'grill-map', surface: 'terminal', ...PANE })
-  const has = async (text: RegExp) => expect(await ui.find({ type: 'Text', text }), String(text)).toBeDefined()
+  const has = async (text: RegExp) => expect(await ui.find({ text }), String(text)).toBeDefined()
   await has(/◆ grill-with-docs/)
   await has(/^The offline sync for the field app$/)
   await has(/┃ ⌕ agent · Find the current sync code/)
@@ -163,7 +163,7 @@ test('a round in the grilling format starts a grill by itself, subject the last 
   await $.prompt.submit(say('Grill me on the billing rewrite'))
   await $.turn.complete(turn(ROUND_TWO, 't1'))
   const ui = await $.ui.mount({ plugin: 'grill-map', surface: 'terminal', ...PANE })
-  const has = async (text: RegExp) => expect(await ui.find({ type: 'Text', text }), String(text)).toBeDefined()
+  const has = async (text: RegExp) => expect(await ui.find({ text }), String(text)).toBeDefined()
   await has(/◆ grilling/)
   await has(/^Grill me on the billing rewrite$/)
   await has(/◆ L1 · waiting for you/)
@@ -175,7 +175,7 @@ test('a new level takes the focus: the levels before it fold, even one unfolded 
   await $.skill.prompt({ skill: 'grill-me', text: 'ARGUMENTS: Offline sync' })
   await $.turn.complete(turn(ROUND_ONE, 't1'))
   const ui = await $.ui.mount({ plugin: 'grill-map', surface: 'terminal', ...PANE })
-  const has = async (text: RegExp) => expect(await ui.find({ type: 'Text', text }), String(text)).toBeDefined()
+  const has = async (text: RegExp) => expect(await ui.find({ text }), String(text)).toBeDefined()
   await has(/◆ L1 · waiting for you ▾/)
 
   await $.prompt.submit(say('yes'))

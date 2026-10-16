@@ -293,20 +293,18 @@ export const spineRows = (el: SpineElements, v: SpineView): RenderChildren[] => 
     lines.push(row(`${r.id}-gap`, spine(), ''))
     lines.push(
       <Box key={r.id} flexDirection="row" justifyContent="space-between">
-        <Box flexShrink={1}>
-          <Button key={`${v.keyPrefix}level-${level}`} plain onPress={() => v.onTurn(r.id)}>
-            <Text wrap="truncate-end">
-              <Text color={waiting ? AMBER : done === marks.length ? GREEN : FOG}>{waiting ? '◆ ' : '● '}</Text>
-              <Text bold>L{level}</Text>
-              <Text dimColor>
-                {' · '}
-                {r.via === 'dialog' ? 'dialog · ' : ''}
-                {waiting ? '' : `${done}/${marks.length} settled`}
-              </Text>
-              {waiting ? <Text color={AMBER}>waiting for you</Text> : ''}
-              <Text color={EDGE}>{isOpen ? ' ▾' : ' ▸'}</Text>
+        <Box flexShrink={1} flexDirection="row">
+          <Text color={waiting ? AMBER : done === marks.length ? GREEN : FOG}>{waiting ? '◆ ' : '● '}</Text>
+          <Button key={`${v.keyPrefix}level-${level}`} plain label={`L${level}`} onPress={() => v.onTurn(r.id)} />
+          <Text wrap="truncate-end">
+            <Text dimColor>
+              {' · '}
+              {r.via === 'dialog' ? 'dialog · ' : ''}
+              {waiting ? '' : `${done}/${marks.length} settled`}
             </Text>
-          </Button>
+            {waiting ? <Text color={AMBER}>waiting for you</Text> : ''}
+            <Text color={EDGE}>{isOpen ? ' ▾' : ' ▸'}</Text>
+          </Text>
         </Box>
         <Box flexShrink={0} marginLeft={1}>
           <Text dimColor>{since(r.at, v.now)}</Text>

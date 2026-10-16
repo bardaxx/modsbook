@@ -865,15 +865,20 @@ export const register: Register = on => {
       const extra = t.blockedBy.filter(id => id !== parentOf.get(t.id) && byId.has(id)).length
       return (
         <Box key={`row-${t.id}`} flexDirection="row" justifyContent="space-between">
-          <Box flexShrink={1}>
-            <Button key={`focus-${t.id}`} plain {...(digit ? { hotkey: digit } : {})} onPress={() => toggleFocus(t.id)}>
-              <Text wrap="truncate-end" bold={isFocused} dimColor={s === 'resolved' || s === 'blocked'}>
-                <Text color={EDGE}>{prefix}</Text>
-                <Text color={STATE_COLOR[s]}>{isFocused ? '◉' : STATE_MARK[s]} </Text>
-                {t.title}
-                {extra > 0 ? <Text dimColor> ⋯{extra}</Text> : ''}
-              </Text>
-            </Button>
+          <Box flexShrink={1} flexDirection="row">
+            <Text>
+              <Text color={EDGE}>{prefix}</Text>
+              <Text color={STATE_COLOR[s]}>{isFocused ? '◉' : STATE_MARK[s]} </Text>
+            </Text>
+            <Button
+              key={`focus-${t.id}`}
+              plain
+              {...(digit ? { hotkey: digit } : {})}
+              dimColor={s === 'resolved' || s === 'blocked'}
+              label={t.title}
+              onPress={() => toggleFocus(t.id)}
+            />
+            {extra > 0 ? <Text dimColor> ⋯{extra}</Text> : null}
           </Box>
           <Box flexShrink={0} marginLeft={1}>
             <Text>
@@ -1074,13 +1079,14 @@ export const register: Register = on => {
     )
 
     const tab = (key: Tab, label: string, hotkey: string, n?: number) => (
-      <Button key={`tab-${key}`} plain hotkey={hotkey} onPress={() => update($, way, g => ({ ...g, tab: key }))}>
-        {w.tab === key ? (
-          pill(`${label}${n ? ` ${n}` : ''}`, ACCENT, INK, true)
-        ) : (
-          <Text dimColor>{` ${label}${n ? ` ${n}` : ''} `}</Text>
-        )}
-      </Button>
+      <Button
+        key={`tab-${key}`}
+        plain
+        hotkey={hotkey}
+        dimColor={w.tab !== key}
+        label={`${label}${n ? ` ${n}` : ''}`}
+        onPress={() => update($, way, g => ({ ...g, tab: key }))}
+      />
     )
     const resolved = count('resolved')
 
