@@ -52,6 +52,14 @@ At the prompt of a Claude Code terminal session:
 
 Answer `y` to add the marketplace, then pick a scope (Enter takes the user scope).
 
+To update it:
+
+```sh
+claude plugin update spec-flow@modsbook
+```
+
+The new version loads in the next session, or at once with `/reload-plugins`. To get updates without asking, turn on auto-update for modsbook in `/plugin`, under Marketplaces; it is off by default.
+
 To run it from a clone while you change it:
 
 ```sh

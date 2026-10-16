@@ -20,6 +20,20 @@ At the prompt of a Claude Code terminal session, name the mod:
 
 Answer `y` to add the marketplace (once), then pick a scope (Enter takes the user scope). The mod runs in that session at once, and in every session after.
 
+## Update
+
+A mod updates when you ask for it:
+
+```sh
+claude plugin update <mod>@modsbook
+```
+
+The new version loads in the next session, or at once with `/reload-plugins`.
+
+To have updates arrive on their own, turn on auto-update for modsbook in `/plugin`, under Marketplaces. It is off by default, as for every marketplace outside Anthropic's own. Each session then checks modsbook as it starts, and `Plugin updated: <mod> · Run /reload-plugins to apply` says when a new version is in.
+
+A new version is one whose `version` in `plugin.json` has gone up: changing a mod means raising it, or nobody receives the change.
+
 ## Layout
 
 ```text
