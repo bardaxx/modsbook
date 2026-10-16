@@ -1,12 +1,16 @@
 {
   "name": "skillmaps",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Side panes along the AI Hero skills: grill-map for a grilling's design tree, wayfinder-map for a /wayfinder map, spec-map for a spec from its tickets to the merge",
   "author": {
     "name": "bardaxx"
   },
   "repository": "https://github.com/bardaxx/modsbook",
   "license": "MIT",
+  "keywords": ["mattpocock-skills", "grilling", "wayfinder", "spec", "side-pane"],
+  "dependencies": [
+    { "name": "mattpocock-skills", "marketplace": "claude-plugins-official" }
+  ],
   "userConfig": {
     "grill": {
       "type": "boolean",

@@ -4,6 +4,7 @@
     "name": "bardaxx"
   },
   "description": "A book of Claude Code mods: side panes, bands, status lines and hooks, each one line to install.",
+  "allowCrossMarketplaceDependenciesOn": ["claude-plugins-official"],
   "plugins": [
     {
       "name": "skillmaps",

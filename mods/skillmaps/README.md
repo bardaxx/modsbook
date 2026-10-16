@@ -51,7 +51,9 @@ In a Claude Code session, a pane docks beside the transcript. Here grill-map fol
 ## Requirements
 
 - Claude Code with function-hook mods (2.1.292 or later).
-- The skills each map follows, listed under its section.
+- The skills each map follows, listed under its section. They come from [mattpocock/skills](https://github.com/mattpocock/skills), which skillmaps depends on: installing it installs `mattpocock-skills@claude-plugins-official` too, from Anthropic's own marketplace. The maps read the skills under that plugin's names (`/mattpocock-skills:grill-me`) as well as bare (`/grill-me`).
+
+If you already keep those skills in `~/.claude/skills/` or a project's `.claude/skills/`, the plugin adds them a second time under its prefix. Remove your copies to keep one set, or keep both: the maps follow either.
 
 ## Install
 
