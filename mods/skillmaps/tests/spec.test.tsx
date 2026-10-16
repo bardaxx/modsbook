@@ -75,7 +75,9 @@ test('the pane shows the spec, its tickets and the implementer working on one', 
       String(/^Checks popover$/),
     ).toBeDefined()
     const buttons = (await ui.findAll({ type: 'Button' })).map(b => b.props.label)
-    expect(buttons, 'the agent row presses on its role').toContain('implementer')
+    expect(buttons.some(l => /^Implement #241/.test(l)), 'the agent row presses on its description').toBe(true)
+    expect(await ui.find({ type: 'Text', text: /1 running · 1 total/ }), 'the timeline footer').toBeDefined()
+    expect(await ui.find({ type: 'Text', text: /━/ }), "the agent's bar").toBeDefined()
     expect(await ui.find({ type: 'Text', text: /Bash|starting/ }), String(/Bash|starting/)).toBeDefined()
     expect(await ui.find({ type: 'Text', text: /1 implementing/ }), String(/1 implementing/)).toBeDefined()
     expect(await ui.find({ type: 'Text', text: /2 of 3 done/ }), String(/2 of 3 done/)).toBeDefined()

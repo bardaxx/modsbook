@@ -2222,10 +2222,6 @@ const registerSpec = (on: Parameters<Register>[0], options: Parameters<Register>
     const at = stage ? STAGES.findIndex(s => s.stage === stage) : -1
 
     const running = f.agents.filter(a => a.status === 'running')
-    const finished = f.agents
-      .filter(a => a.status !== 'running')
-      .slice(-4)
-      .reverse()
     const slots = running.filter(a => a.role === 'implementer').length
     const cap = specConfiguredCap ?? f.slotCap
 
@@ -2272,8 +2268,14 @@ const registerSpec = (on: Parameters<Register>[0], options: Parameters<Register>
       )
     }
 
-    // A digit focuses an agent: its steps laid out in full below the list.
-    const listed = [...running, ...finished].slice(0, 9)
+    // A digit focuses an agent: its steps laid out in full below the timeline.
+    // The newest nine in the order they started; a running agent keeps its row over a finished one.
+    const listed = [...f.agents].sort((x, y) => x.startedAt - y.startedAt)
+    while (listed.length > 9) {
+      const old = listed.findIndex(a => a.status !== 'running')
+      listed.splice(old < 0 ? 0 : old, 1)
+    }
+    const earlier = f.agents.length - listed.length
     const focused = f.agents.find(a => a.id === f.focus)
     const toggleFocus = (id: string) => update($, flow, g => ({ ...g, focus: g.focus === id ? null : id }))
     const counts = (a: AgentRow) => (
@@ -2282,51 +2284,56 @@ const registerSpec = (on: Parameters<Register>[0], options: Parameters<Register>
       </Text>
     )
 
+    // One shared time axis: from the first listed start to now, or to the last end once all are done.
+    const from = Math.min(...listed.map(a => a.startedAt))
+    const to = running.length ? now : Math.max(...listed.map(a => a.endedAt ?? now))
+    const nameWidth = Math.min(24, Math.max(8, Math.floor(inner * 0.3)))
+    // mark, "n: ", the name, a gap, the track, a gap, the clock
+    const trackWidth = inner - 2 - 3 - nameWidth - 1 - 1 - 5
+    const column = (t: number) =>
+      Math.min(trackWidth, Math.max(0, Math.floor(((t - from) / Math.max(1, to - from)) * trackWidth)))
+    const clock = (ms: number) => {
+      const s = Math.max(0, Math.round(ms / 1000))
+      const m = Math.floor(s / 60)
+      const mmss = `${m % 60}:${String(s % 60).padStart(2, '0')}`
+      return m < 60 ? mmss : `${Math.floor(m / 60)}:${mmss.padStart(5, '0')}`
+    }
+
     const agentRow = (a: AgentRow) => {
-      const color = ROLE_COLOR[a.role]
-      const refs = a.tickets.map(n => `#${n}`).join(' ')
-      const age = specSince(a.startedAt, a.endedAt ?? now)
-      const label = ` ${a.activity.slice(0, inner - 3)}${a.activity.length > inner - 3 ? '…' : ''} `
+      const color =
+        a.status === 'done' ? SPEC_STATE_COLOR.done : a.status === 'failed' ? SPEC_STATE_COLOR.failed : ROLE_COLOR[a.role]
+      const mark = a.status === 'done' ? '✓' : a.status === 'failed' ? '✗' : '◐'
+      const name =
+        a.description.length > nameWidth ? `${a.description.slice(0, nameWidth - 1)}…` : a.description.padEnd(nameWidth)
       const digit = String(listed.indexOf(a) + 1)
       const isFocused = a.id === f.focus
-      if (a.status !== 'running') {
-        return (
-          <Box key={`agent-${a.id}`} flexDirection="row" justifyContent="space-between">
-            <Box flexShrink={1} flexDirection="row">
-              <Button key={`focus-${a.id}`} plain hotkey={digit} dimColor={!isFocused} label={`${a.role}${refs ? ` ${refs}` : ''}`} onPress={() => toggleFocus(a.id)} />
-              <Text dimColor={!isFocused} bold={isFocused} wrap="truncate-end">
-                {' '}
-                <Text color={a.status === 'done' ? SPEC_STATE_COLOR.done : SPEC_STATE_COLOR.failed}>{a.status === 'done' ? '✓' : '✗'}</Text>
-                {' · '}
-                {a.report || a.description}
-              </Text>
-            </Box>
-            <Text dimColor> {age}</Text>
-          </Box>
-        )
-      }
+      const start = Math.min(trackWidth - 1, column(a.startedAt))
+      const end = Math.max(start + 1, column(a.endedAt ?? now))
       return (
-        <Box key={`agent-${a.id}`} flexDirection="column" marginBottom={1}>
-          <Box flexDirection="row" justifyContent="space-between">
-            <Box flexShrink={1} flexDirection="row">
-              <Button key={`focus-${a.id}`} plain hotkey={digit} label={a.role} onPress={() => toggleFocus(a.id)} />
-              <Text wrap="truncate-end">
-                <Text color={color}>{isFocused ? ' ◉' : ' ●'}</Text>
-                {refs ? <Text color={color}> {refs}</Text> : ''}
-                <Text dimColor> · {a.description}</Text>
+        <Box key={`agent-${a.id}`} flexDirection="column">
+          <Box flexDirection="row">
+            <Text color={color}>{mark} </Text>
+            <Button key={`focus-${a.id}`} plain hotkey={digit} dimColor={a.status !== 'running' && !isFocused} label={name} onPress={() => toggleFocus(a.id)} />
+            {trackWidth >= 6 && (
+              <Text>
+                {' '}
+                <Text color={SPEC_EDGE}>{'·'.repeat(start)}</Text>
+                <Text color={color}>{'━'.repeat(end - start)}</Text>
+                <Text color={SPEC_EDGE}>{'·'.repeat(trackWidth - end)}</Text>
               </Text>
-            </Box>
-            <Text>
-              {counts(a)}
-              <Text dimColor> ↻ {age}</Text>
+            )}
+            <Text dimColor={!isFocused} bold={isFocused}>
+              {' '}
+              {clock((a.endedAt ?? now) - a.startedAt).padStart(5)}
             </Text>
           </Box>
-          <Text>
-            <Text backgroundColor={color} color={SPEC_INK}>
-              {label}
+          {a.status === 'running' && (
+            <Text dimColor wrap="truncate-end">
+              {'     └ '}
+              {a.activity} · {a.tools} tools
+              {a.errors ? <Text color={SPEC_STATE_COLOR.failed}> · {a.errors} ✗</Text> : ''}
             </Text>
-            <Text backgroundColor={SPEC_TRACK}>{' '.repeat(inner - label.length)}</Text>
-          </Text>
+          )}
         </Box>
       )
     }
@@ -2474,11 +2481,17 @@ const registerSpec = (on: Parameters<Register>[0], options: Parameters<Register>
                 </Text>
               </Text>,
             )}
-            {running.length === 0 && finished.length === 0 && <Text dimColor>No agents yet.</Text>}
-            {running.length > 0 && <Text> </Text>}
-            {running.map(agentRow)}
-            {finished.map(agentRow)}
-            {listed.length > 0 && !focused && <Text dimColor>1–{listed.length} shows what an agent did</Text>}
+            {listed.length === 0 && <Text dimColor>No agents yet.</Text>}
+            {earlier > 0 && <Text dimColor>+{earlier} earlier</Text>}
+            {listed.map(agentRow)}
+            {listed.length > 0 && (
+              <Box flexDirection="row" justifyContent="space-between">
+                <Text dimColor>
+                  {running.length} running · {f.agents.length} total
+                </Text>
+                {!focused && <Text dimColor>1–{listed.length} expand</Text>}
+              </Box>
+            )}
           </Box>,
         )}
 
