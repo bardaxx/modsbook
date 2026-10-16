@@ -33,6 +33,13 @@ for shared in hooks/spine.tsx hooks/reply.ts; do
     failed=1
   fi
 done
+# The terminal bar every pane opens with: one copy in each mod, kept identical.
+for mod in mods/*/; do
+  if ! cmp -s "mods/grill-map/hooks/header.tsx" "${mod}hooks/header.tsx"; then
+    echo "✘ hooks/header.tsx differs between mods/grill-map and ${mod%/}: keep every copy identical"
+    failed=1
+  fi
+done
 # A contract imports nothing, so both declare the Spine's steps, from the top down to `export type Step`.
 steps() { sed '/^export type Step = /q' "mods/$1/types/index.d.ts"; }
 if [ "$(steps grill-map)" != "$(steps wayfinder-map)" ]; then
