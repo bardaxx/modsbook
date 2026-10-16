@@ -8,7 +8,7 @@ A Claude Code mod of three side panes, one for each stretch of the road the [AI 
 | [wayfinder-map](#wayfinder-map) | `/wayfinder`: the map as a navigable graph from start to destination, the decisions so far, the fog, and each ticket's grilling as a design tree. |
 | [spec-map](#spec-map) | A spec from idea to merge: the stage, what each subagent is doing, the tickets and the integration PR. |
 
-Each pane opens with the same header: `SKILLMAPS · <MAP> <STATE>` with the map in its own color, a legend of the maps turned on (a press on one opens it), and a strip of braille dots that drifts while the map works.
+Each pane opens with the same header: `SKILLMAPS · <MAP> <STATE>` with the map in its own color, a legend of the maps turned on (a press on one opens it), and a strip of braille dots each map animates its own way: grill-map's flames, wayfinder-map's traveller in the fog, spec-map's conveyor. It moves every frame while the map works and at a slower beat at rest.
 
 ## Requirements
 
