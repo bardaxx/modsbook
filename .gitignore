@@ -1,3 +1,6 @@
 # Written by Claude Code at each load: the API types for this build
 mods/*/.claude-plugin/types/
 .DS_Store
+
+# Local wayfinder maps (the local-markdown tracker)
+.scratch/
