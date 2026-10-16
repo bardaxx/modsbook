@@ -2,6 +2,7 @@ import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register, RenderChildren } from 'claude-code'
 
 import type { AgentRow, Flow, IntegrationPr, Role, Stage, Step, Ticket } from '../types'
+import { header } from './header'
 
 const PANE = 'spec-flow'
 const TITLE = 'Flow'
@@ -762,6 +763,7 @@ export const register: Register = (on, options) => {
 
     return (
       <Box flexDirection="column">
+        {header({ Box, Text }, PANE, e.props.bodyColumns)}
         {card(
           'flow',
           <Box flexDirection="column">

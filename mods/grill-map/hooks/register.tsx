@@ -4,6 +4,7 @@ import type { EngineInterface, Register, RenderChildren } from 'claude-code'
 import type { Grill, GrillBook, GrillSkill, RoundStep, Step, WayfinderRun } from '../types'
 import { applyReply, dialogRound, firstLine, isWaiting, isWrapDue, lastTurn, markOf, parseRound, plain, settleWrap } from './reply'
 import type { Mark } from './reply'
+import { header } from './header'
 import {
   ACCENT,
   BLUE,
@@ -347,14 +348,19 @@ export const register: Register = on => {
     )
 
     if (!g)
-      return card(
-        'empty',
+      return (
         <Box flexDirection="column">
-          {heading('grill map')}
-          <Text dimColor wrap="wrap">
-            /grill-me, /grill-with-docs or /grilling draws its design tree here, one level per round.
-          </Text>
-        </Box>,
+          {header(el, PANE, e.props.bodyColumns)}
+          {card(
+            'empty',
+            <Box flexDirection="column">
+              {heading('grill map')}
+              <Text dimColor wrap="wrap">
+                /grill-me, /grill-with-docs or /grilling draws its design tree here, one level per round.
+              </Text>
+            </Box>,
+          )}
+        </Box>
       )
 
     const rounds = g.steps.filter((s): s is RoundStep => s.kind === 'round')
@@ -471,6 +477,7 @@ export const register: Register = on => {
 
     return (
       <Box flexDirection="column">
+        {header(el, PANE, e.props.bodyColumns)}
         {head}
         {tree}
         <Box flexDirection="row" columnGap={1} paddingX={1}>

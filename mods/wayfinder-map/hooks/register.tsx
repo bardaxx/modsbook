@@ -18,6 +18,7 @@ import type {
   Wayfinder,
 } from '../types'
 import { applyReply, dialogRound, firstLine, isWaiting, isWrapDue, lastTurn, markOf, parseRound, plain, settleWrap } from './reply'
+import { header } from './header'
 import {
   cut,
   docTraceOf,
@@ -1085,6 +1086,7 @@ export const register: Register = on => {
 
     return (
       <Box flexDirection="column">
+        {header(el, PANE, e.props.bodyColumns)}
         {card(
           'map',
           <Box flexDirection="column">
