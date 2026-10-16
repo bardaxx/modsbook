@@ -14,6 +14,11 @@
       "name": "wayfinder-map",
       "source": "./mods/wayfinder-map",
       "description": "A side pane for /wayfinder: the map as a navigable graph from start to destination, the decisions so far, the fog and the grilling's design tree"
+    },
+    {
+      "name": "grill-map",
+      "source": "./mods/grill-map",
+      "description": "A side pane for /grill-me, /grill-with-docs and /grilling: the design tree top to bottom, one level per round, with each recommendation, what was chosen, the lookups and the docs written"
     }
   ]
 }

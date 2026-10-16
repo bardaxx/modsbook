@@ -10,16 +10,27 @@ Mods are plugins of function hooks for [Claude Code](https://docs.claude.com/en/
 | --- | --- |
 | [spec-flow](mods/spec-flow) | A side pane that follows a spec from idea to merge: the stage, what each subagent is doing, the tickets and the integration PR. |
 | [wayfinder-map](mods/wayfinder-map) | A side pane for `/wayfinder`: the map as a navigable graph from start to destination, the decisions so far, the fog, and each grilling round as a design tree. |
+| [grill-map](mods/grill-map) | A side pane for `/grill-me`, `/grill-with-docs` and `/grilling`: the design tree read top to bottom, one level per round, with each recommendation, what was chosen, the lookups and the docs written. |
+
+The two follow the same road, the [AI Hero skills](https://www.aihero.dev/skills): wayfinder-map up to the spec, spec-flow from the spec to the merge. Each works without the other.
 
 ## Install
 
 At the prompt of a Claude Code terminal session, name the mod:
 
 ```text
-/plugin install spec-flow --marketplace bardaxx/modsbook
+/plugin install <mod> --marketplace bardaxx/modsbook
 ```
 
 Answer `y` to add the marketplace (once), then pick a scope (Enter takes the user scope). The mod runs in that session at once, and in every session after.
+
+With the marketplace added, the other mods install by name, or from the list `/plugin` shows under modsbook:
+
+```text
+/plugin install spec-flow@modsbook
+/plugin install wayfinder-map@modsbook
+/plugin install grill-map@modsbook
+```
 
 ## Update
 
