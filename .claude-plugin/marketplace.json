@@ -6,8 +6,8 @@
   "description": "A book of Claude Code mods: side panes, bands, status lines and hooks, each one line to install.",
   "plugins": [
     {
-      "name": "spec-flow",
-      "source": "./mods/spec-flow",
+      "name": "spec-map",
+      "source": "./mods/spec-map",
       "description": "A side pane that follows a spec from idea to merge: stage, agents, tickets and PR"
     },
     {

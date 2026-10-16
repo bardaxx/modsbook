@@ -2,7 +2,7 @@ import { expect, test } from 'claude-code/testing'
 
 const PANE = {
   component: 'Pane',
-  requestId: 'spec-flow',
+  requestId: 'spec-map',
   props: {
     title: 'Flow',
     isFocused: false,
@@ -67,7 +67,7 @@ test('the pane shows the spec, its tickets and the implementer working on one', 
   })
 
   for (const surface of ['terminal', 'desktop'] as const) {
-    const ui = await $.ui.mount({ plugin: 'spec-flow', surface, ...PANE })
+    const ui = await $.ui.mount({ plugin: 'spec-map', surface, ...PANE })
     expect(await ui.find({ type: 'Text', text: /spec #239/ }), String(/spec #239/)).toBeDefined()
     expect(
       await ui.find({ type: 'Text', text: /^Checks popover$/ }),
@@ -138,7 +138,7 @@ test('the slots setting draws the meter against its cap', { options: { slots: 3 
     fork: false,
   })
 
-  const ui = await $.ui.mount({ plugin: 'spec-flow', surface: 'terminal', ...PANE })
+  const ui = await $.ui.mount({ plugin: 'spec-map', surface: 'terminal', ...PANE })
   expect(await ui.find({ type: 'Text', text: /1\/3 slots/ })).toBeDefined()
   await ui.unmount()
 })
@@ -156,7 +156,7 @@ test('state kept from an older version draws no undefined cap', async ($, on) =>
     refreshedAt: null,
   }
   on('state.get', () => ({ value: { value: old as never, version: 1 } }))
-  const ui = await $.ui.mount({ plugin: 'spec-flow', surface: 'terminal', ...PANE })
+  const ui = await $.ui.mount({ plugin: 'spec-map', surface: 'terminal', ...PANE })
   expect(await ui.find({ type: 'Text', text: /undefined/ })).toBeUndefined()
   expect(await ui.find({ type: 'Text', text: /none implementing/ })).toBeDefined()
   await ui.unmount()
@@ -200,7 +200,7 @@ test('a digit lays out what an agent did: its tools, their errors and what it sa
   await $.tool.call(tests)
 
   for (const surface of ['terminal', 'desktop'] as const) {
-    const ui = await $.ui.mount({ plugin: 'spec-flow', surface, ...PANE })
+    const ui = await $.ui.mount({ plugin: 'spec-map', surface, ...PANE })
     expect(await ui.find({ type: 'Text', text: /2 tools/ }), '2 tools').toBeDefined()
     expect(await ui.find({ type: 'Text', text: /now the tests/ }), 'no steps before focus').toBeUndefined()
 

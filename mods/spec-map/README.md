@@ -1,4 +1,4 @@
-# spec-flow
+# spec-map
 
 A Claude Code mod that docks a side pane beside the transcript and follows a spec from idea to merge: which stage the work is in, what each subagent is doing right now, and how far the tickets have come.
 
@@ -44,18 +44,19 @@ It is built around the idea-to-ship spine of [AI Hero's skills](https://www.aihe
 
 ## Install
 
-At the prompt of a Claude Code terminal session:
+At the prompt of a Claude Code terminal session, add the marketplace (once), then install the mod:
 
 ```text
-/plugin install spec-flow --marketplace bardaxx/modsbook
+/plugin marketplace add bardaxx/modsbook
+/plugin install spec-map@modsbook
 ```
 
-Answer `y` to add the marketplace, then pick a scope (Enter takes the user scope).
+Pick a scope when asked (Enter takes the user scope).
 
 To update it:
 
 ```sh
-claude plugin update spec-flow@modsbook
+claude plugin update spec-map@modsbook
 ```
 
 The new version loads in the next session, or at once with `/reload-plugins`. To get updates without asking, turn on auto-update for modsbook in `/plugin`, under Marketplaces; it is off by default.
@@ -63,7 +64,7 @@ The new version loads in the next session, or at once with `/reload-plugins`. To
 To run it from a clone while you change it:
 
 ```sh
-claude --plugin-dir /path/to/modsbook/mods/spec-flow
+claude --plugin-dir /path/to/modsbook/mods/spec-map
 ```
 
 ## Use

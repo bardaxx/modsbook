@@ -4,7 +4,7 @@ import type { EngineInterface, Register, RenderChildren } from 'claude-code'
 import type { AgentRow, Flow, IntegrationPr, Role, Stage, Step, Ticket } from '../types'
 import { header } from './header'
 
-const PANE = 'spec-flow'
+const PANE = 'spec-map'
 const TITLE = 'Flow'
 const POLL_MS = 60_000
 // The steps each agent keeps, and how many the focused card lays out.
@@ -73,7 +73,7 @@ const EMPTY: Flow = {
   error: null,
   refreshedAt: null,
 }
-const flow = atom({ plugin: 'spec-flow', key: 'flow' } as const, EMPTY)
+const flow = atom({ plugin: 'spec-map', key: 'flow' } as const, EMPTY)
 
 // A row an older version kept lacks the step log.
 const upgrade = (a: AgentRow): AgentRow => ({ ...a, steps: a.steps ?? [], tools: a.tools ?? 0, errors: a.errors ?? 0 })
@@ -367,7 +367,7 @@ export const register: Register = (on, options) => {
   on('session.start', async ($, e, next) => {
     await $.command.register({
       name: 'flow',
-      description: 'Show the spec flow pane (/flow spec <n>, /flow refresh, /flow clear)',
+      description: 'Show the spec-map pane (/flow spec <n>, /flow refresh, /flow clear)',
       argumentHint: '[spec <n> | refresh | clear]',
     })
     $.clock.every(POLL_MS, () => void refresh($))

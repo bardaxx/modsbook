@@ -1,5 +1,5 @@
 {
-  "name": "spec-flow",
+  "name": "spec-map",
   "version": "0.3.0",
   "description": "Side pane for the idea-to-ship flow: stage, spec, tickets and what each agent is doing",
   "author": {

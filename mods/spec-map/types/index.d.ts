@@ -65,6 +65,6 @@ export type Flow = {
 
 declare module 'claude-code' {
   interface PluginState {
-    'spec-flow': { flow: Flow }
+    'spec-map': { flow: Flow }
   }
 }

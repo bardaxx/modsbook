@@ -63,13 +63,14 @@ Without wayfinder-map, a `/wayfinder` grill is a grill like any other.
 
 ## Install
 
-At the prompt of a Claude Code terminal session:
+At the prompt of a Claude Code terminal session, add the marketplace (once), then install the mod:
 
 ```text
-/plugin install grill-map --marketplace bardaxx/modsbook
+/plugin marketplace add bardaxx/modsbook
+/plugin install grill-map@modsbook
 ```
 
-Answer `y` to add the marketplace, then pick a scope (Enter takes the user scope).
+Pick a scope when asked (Enter takes the user scope).
 
 To update it:
 
