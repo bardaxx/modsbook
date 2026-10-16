@@ -9,7 +9,7 @@ Mods are plugins of function hooks for [Claude Code](https://docs.claude.com/en/
 | Mod | What it does |
 | --- | --- |
 | [spec-flow](mods/spec-flow) | A side pane that follows a spec from idea to merge: the stage, what each subagent is doing, the tickets and the integration PR. |
-| [wayfinder-map](mods/wayfinder-map) | A side pane for `/wayfinder`: the map's route as a tree of decision tickets, the decisions so far, the fog, and each grilling round as a design tree. |
+| [wayfinder-map](mods/wayfinder-map) | A side pane for `/wayfinder`: the map as a navigable graph from start to destination, the decisions so far, the fog, and each grilling round as a design tree. |
 
 ## Install
 

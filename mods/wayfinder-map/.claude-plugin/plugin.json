@@ -1,0 +1,11 @@
+{
+  "name": "wayfinder-map",
+  "version": "0.2.0",
+  "description": "Side pane for /wayfinder: the map as a navigable graph of decision tickets from start to destination, the decisions so far, the fog, and the grilling's design tree",
+  "author": {
+    "name": "bardaxx"
+  },
+  "repository": "https://github.com/bardaxx/modsbook",
+  "license": "MIT",
+  "types": "./types/index.d.ts"
+}

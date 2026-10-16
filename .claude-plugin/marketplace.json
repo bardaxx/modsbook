@@ -9,6 +9,11 @@
       "name": "spec-flow",
       "source": "./mods/spec-flow",
       "description": "A side pane that follows a spec from idea to merge: stage, agents, tickets and PR"
+    },
+    {
+      "name": "wayfinder-map",
+      "source": "./mods/wayfinder-map",
+      "description": "A side pane for /wayfinder: the map as a navigable graph from start to destination, the decisions so far, the fog and the grilling's design tree"
     }
   ]
 }
