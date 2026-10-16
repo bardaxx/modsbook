@@ -336,9 +336,13 @@ It is built around the idea-to-ship spine of [AI Hero's skills](https://www.aihe
 ╰───────────────────────────────────────────────╯
 ╭───────────────────────────────────────────────╮
 │ ◆ agents                      ■ ■ □ 2/3 slots │
-│ 1: implementer ● #241 · Implement #241   ↻ 3m │
-│  Bash mise run lint                           │
-│ 2: merger #239 ✓ · Merged cleanly         12m │
+│ ✓ 1: Implement #2… ━━━━━━··············  2:20 │
+│ ✓ 2: Merge #239 i… ······━━━···········  0:47 │
+│ ◐ 3: Implement #2… ·········━━━━━━━━━━━  4:05 │
+│      └ Bash mise run lint · 12 tools          │
+│ ◐ 4: Implement #2… ··············━━━━━━  2:13 │
+│      └ Read src/builder.tsx · 4 tools         │
+│ 2 running · 4 total                1–4 expand │
 ╰───────────────────────────────────────────────╯
 ╭───────────────────────────────────────────────╮
 │ ◆ tickets                         2 of 5 done │
@@ -354,7 +358,7 @@ It is built around the idea-to-ship spine of [AI Hero's skills](https://www.aihe
 ### What it shows
 
 - **flow**: the spec being followed, its integration PR with its CI state, and the stage. A skill that runs sets the stage; a spec followed with `/skillmaps spec <n>` takes it from its tickets and PR.
-- **agents**: each subagent this session spawns, with its role (implementer, merger, reviewer, explorer, read from its description), the tickets it names, the tool it is running now and how long it has run. The slot meter counts running implementers against a cap: the `slots` setting, or else the cap the running implement skill states ("in **3 slots** at most"). With neither, it counts them with no cap.
+- **agents**: each subagent this session spawns as a timeline, the newest nine in the order they started: ✓, ✗ or ◐ for done, failed or running, its description, a bar from when it started to when it ended (or now) on an axis shared by all the rows, and how long it ran. A running agent's bar takes its role's color (implementer, merger, reviewer, explorer, read from its description), with the tool it is running now below it; older agents fold into `+n earlier`. The slot meter counts running implementers against a cap: the `slots` setting, or else the cap the running implement skill states ("in **3 slots** at most"). With neither, it counts them with no cap.
 - **steps**: press an agent's digit (`1`–`9`) and its card lays out what it did, newest last: each tool it ran with how long it took, ✗ and the error's first line where one failed, and the lines it wrote between tools (`› The lint passes; now the tests.`). `o` puts that agent's whole transcript in the main view, as the tasks list does, and back; `x` closes the card.
 - **tickets**: the spec's sub-issues as one bar split by state, a legend, and one row per ticket: closed, merged into the integration branch, being merged, implemented and waiting for a merge, in progress, ready (on the frontier), or blocked by the tickets it waits for.
 
