@@ -16,15 +16,13 @@ The two follow the same road, the [AI Hero skills](https://www.aihero.dev/skills
 
 ## Install
 
-At the prompt of a Claude Code terminal session, name the mod:
+At the prompt of a Claude Code terminal session, add the marketplace first (once):
 
 ```text
-/plugin install <mod> --marketplace bardaxx/modsbook
+/plugin marketplace add bardaxx/modsbook
 ```
 
-Answer `y` to add the marketplace (once), then pick a scope (Enter takes the user scope). The mod runs in that session at once, and in every session after.
-
-With the marketplace added, the other mods install by name, or from the list `/plugin` shows under modsbook:
+Then install a mod by name, and pick a scope (Enter takes the user scope). The mod runs in that session at once, and in every session after:
 
 ```text
 /plugin install spec-flow@modsbook
