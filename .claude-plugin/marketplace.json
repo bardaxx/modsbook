@@ -1,7 +1,9 @@
 {
-  "name": "bardaxx-mods",
-  "owner": { "name": "bardaxx" },
-  "description": "Claude Code mods: panes, bands and hooks for the terminal and the desktop Code tab",
+  "name": "modsbook",
+  "owner": {
+    "name": "bardaxx"
+  },
+  "description": "A book of Claude Code mods: side panes, bands, status lines and hooks, each one line to install.",
   "plugins": [
     {
       "name": "spec-flow",

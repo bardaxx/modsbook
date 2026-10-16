@@ -1,6 +1,8 @@
-# claude-mods
+# modsbook
 
-Mods for [Claude Code](https://docs.claude.com/en/docs/claude-code): panes, bands, status lines and hooks that run inside a session, in the terminal and in the desktop app's Code tab. The repository is a plugin marketplace, `bardaxx-mods`, with one plugin per mod.
+A book of Claude Code mods: side panes, bands, status lines and hooks, each one line to install.
+
+Mods are plugins of function hooks for [Claude Code](https://docs.claude.com/en/docs/claude-code) that run inside a session, in the terminal and in the desktop app's Code tab. This repository is a plugin marketplace, `modsbook`, with one plugin per mod.
 
 ## Mods
 
@@ -13,7 +15,7 @@ Mods for [Claude Code](https://docs.claude.com/en/docs/claude-code): panes, band
 At the prompt of a Claude Code terminal session, name the mod:
 
 ```text
-/plugin install spec-flow --marketplace bardaxx/claude-mods
+/plugin install spec-flow --marketplace bardaxx/modsbook
 ```
 
 Answer `y` to add the marketplace (once), then pick a scope (Enter takes the user scope). The mod runs in that session at once, and in every session after.

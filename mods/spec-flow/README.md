@@ -46,7 +46,7 @@ It is built around the idea-to-ship spine of [AI Hero's skills](https://www.aihe
 At the prompt of a Claude Code terminal session:
 
 ```text
-/plugin install spec-flow --marketplace bardaxx/claude-mods
+/plugin install spec-flow --marketplace bardaxx/modsbook
 ```
 
 Answer `y` to add the marketplace, then pick a scope (Enter takes the user scope).
@@ -54,7 +54,7 @@ Answer `y` to add the marketplace, then pick a scope (Enter takes the user scope
 To run it from a clone while you change it:
 
 ```sh
-claude --plugin-dir /path/to/claude-mods/mods/spec-flow
+claude --plugin-dir /path/to/modsbook/mods/spec-flow
 ```
 
 ## Use
