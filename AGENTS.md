@@ -1,3 +1,7 @@
+## Language
+
+Everything written into this repo or its tracker is in English: ADRs, `GLOSSARY.md`, docs, code comments, commit messages, issues, PRs and their comments. This holds even when the conversation runs in another language, such as a grilling session or a `/wayfinder` run held in Italian: talk in the person's language, write the artifacts in English.
+
 ## Agent skills
 
 ### Issue tracker
