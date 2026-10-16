@@ -5,7 +5,6 @@ import type { AgentRow, Flow, IntegrationPr, Role, Stage, Ticket } from '../type
 
 const PANE = 'spec-flow'
 const TITLE = 'Flow'
-const SLOTS = 3
 const POLL_MS = 60_000
 
 // The deck palette: muted pills on a dark track, dark ink on the pills.
@@ -63,6 +62,7 @@ const EMPTY: Flow = {
   spec: null,
   pr: null,
   integration: null,
+  slotCap: null,
   tickets: [],
   agents: [],
   error: null,
@@ -103,6 +103,12 @@ const SIDE_SKILLS = new Set([
   'tdd',
   'codebase-design',
 ])
+
+// A cap the running skill sets on parallel implementers: "in **3 slots** at most".
+const slotCapIn = (text: string): number | null => {
+  const n = Number(/\b(\d+)\**\s+slots?\b/i.exec(text)?.[1])
+  return n > 0 ? n : null
+}
 
 const issueIn = (text: string): number | null => {
   const m = /issues\/(\d+)/.exec(text) ?? /#(\d+)/.exec(text) ?? /^\s*(\d+)\b/.exec(text)
@@ -326,7 +332,10 @@ const enterSkill = async ($: EngineInterface, skill: string, args: string) => {
   if (spec !== null && (name === 'implement-spec' || name === 'to-tickets')) await setSpec($, spec)
 }
 
-export const register: Register = on => {
+export const register: Register = (on, options) => {
+  // The `slots` setting wins over a cap read from the skill; 0 leaves it to the skill.
+  const configuredCap = typeof options.slots === 'number' && options.slots > 0 ? options.slots : null
+
   on('session.start', async ($, e, next) => {
     await $.command.register({
       name: 'flow',
@@ -369,6 +378,8 @@ export const register: Register = on => {
   on('skill.prompt', async ($, e, next) => {
     const args = /ARGUMENTS:\s*(.*)$/m.exec(e.text)?.[1] ?? ''
     await quietly(() => enterSkill($, e.skill, args))
+    const cap = STAGE_OF[e.skill.replace(/^.*:/, '')] === 'implement' ? slotCapIn(e.text) : null
+    if (cap !== null) await quietly(() => update($, flow, f => ({ ...f, slotCap: cap })))
     return next(e)
   })
 
@@ -499,6 +510,7 @@ export const register: Register = on => {
       .slice(-4)
       .reverse()
     const slots = running.filter(a => a.role === 'implementer').length
+    const cap = configuredCap ?? f.slotCap
 
     const pill = (text: string, bg: string, fg = INK, bold = false) => (
       <Text backgroundColor={bg} color={fg} bold={bold}>
@@ -639,13 +651,17 @@ export const register: Register = on => {
             {heading(
               'agents',
               <Text>
-                {Array.from({ length: SLOTS }, (_, i) => (
+                {Array.from({ length: cap ?? slots }, (_, i) => (
                   <Text key={`slot-${i}`} color={i < slots ? ROLE_COLOR.implementer : EDGE}>
                     {i < slots ? '■' : '□'}{' '}
                   </Text>
                 ))}
                 <Text dimColor>
-                  {slots}/{SLOTS} slots
+                  {cap !== null
+                    ? `${slots}/${cap} slots`
+                    : slots
+                      ? `${slots} implementing`
+                      : 'none implementing'}
                 </Text>
               </Text>,
             )}

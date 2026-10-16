@@ -75,7 +75,7 @@ test('the pane shows the spec, its tickets and the implementer working on one', 
     ).toBeDefined()
     expect(await ui.find({ type: 'Text', text: /^implementer$/ }), String(/^implementer$/)).toBeDefined()
     expect(await ui.find({ type: 'Text', text: /Bash|starting/ }), String(/Bash|starting/)).toBeDefined()
-    expect(await ui.find({ type: 'Text', text: /1\/3 slots/ }), String(/1\/3 slots/)).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: /1 implementing/ }), String(/1 implementing/)).toBeDefined()
     expect(await ui.find({ type: 'Text', text: /2 of 3 done/ }), String(/2 of 3 done/)).toBeDefined()
     expect(await ui.find({ type: 'Text', text: /^closed$/ }), String(/^closed$/)).toBeDefined()
     expect(await ui.find({ type: 'Text', text: /^ready$/ }), String(/^ready$/)).toBeDefined()
@@ -89,4 +89,56 @@ test('the pane shows the spec, its tickets and the implementer working on one', 
     expect(await ui.find({ type: 'Text', text: /CI ✗/ }), 'CI pill').toBeDefined()
     await ui.unmount()
   }
+})
+
+test('the slots setting draws the meter against its cap', { options: { slots: 3 } }, async ($, on) => {
+  on('process.run', (_$, e) => {
+    const call = e.argv.join(' ')
+    const stdout = call.includes('issue view')
+      ? JSON.stringify({ title: 'Checks popover: nine changes (a, b, c)' })
+      : call.includes('sub_issues')
+        ? JSON.stringify(issues)
+        : call.includes('pr list')
+          ? JSON.stringify([
+              {
+                number: 243,
+                title: 'feat: popover round (#239)',
+                body: 'Closes #239',
+                state: 'OPEN',
+                isDraft: false,
+                headRefName: 'feat/popover-239',
+              },
+            ])
+          : call.includes('pr view')
+            ? JSON.stringify({
+                statusCheckRollup: [{ status: 'COMPLETED', conclusion: 'FAILURE', state: null }],
+              })
+            : call.includes('pulls/243/commits')
+              ? ['["feat(web): popover header",1]', '["Merge #241: popover header",2]'].join('\n')
+              : '[]'
+    return { value: { exitCode: 0, stdout, stderr: '', isStdoutTruncated: false, isStderrTruncated: false } }
+  })
+  on('agent.spawn', () => ({ model: 'm', agentId: 'a1' }))
+  on('ui.open', () => ({ value: { isPlaced: true as const } }))
+
+  await $.command.run({
+    command: 'flow',
+    args: 'spec 239',
+    origin: { kind: 'composer' },
+    presentation: { isFullscreen: true, columns: 160 },
+  })
+  await $.agent.spawn({
+    tool_use_id: 'toolu_1',
+    prompt: 'Build ticket #241 with tdd.',
+    description: 'Implement #241 popover',
+    subagentType: 'general-purpose',
+    provider: { plugin: 'test', tier: 'user' },
+    parentModel: 'claude-opus-5-5',
+    background: true,
+    fork: false,
+  })
+
+  const ui = await $.ui.mount({ plugin: 'spec-flow', surface: 'terminal', ...PANE })
+  expect(await ui.find({ type: 'Text', text: /1\/3 slots/ })).toBeDefined()
+  await ui.unmount()
 })

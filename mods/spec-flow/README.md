@@ -32,7 +32,7 @@ It is built around the idea-to-ship spine of [AI Hero's skills](https://www.aihe
 ## What it shows
 
 - **flow**: the spec being followed, its integration PR with its CI state, and the stage. A skill that runs sets the stage; a spec followed with `/flow spec <n>` takes it from its tickets and PR.
-- **agents**: each subagent this session spawns, with its role (implementer, merger, reviewer, explorer, read from its description), the tickets it names, the tool it is running now and how long it has run. The slot meter counts running implementers against the three slots `/implement-spec` allows.
+- **agents**: each subagent this session spawns, with its role (implementer, merger, reviewer, explorer, read from its description), the tickets it names, the tool it is running now and how long it has run. The slot meter counts running implementers against a cap: the `slots` setting, or else the cap the running implement skill states ("in **3 slots** at most"). With neither, it counts them with no cap.
 - **tickets**: the spec's sub-issues as one bar split by state, a legend, and one row per ticket: closed, merged into the integration branch, being merged, implemented and waiting for a merge, in progress, ready (on the frontier), or blocked by the tickets it waits for.
 
 ## Requirements
@@ -65,6 +65,14 @@ claude --plugin-dir /path/to/claude-mods/mods/spec-flow
 | `/flow spec <n>` | Follows spec issue `#n` and loads its tickets. |
 | `/flow refresh` | Reads the spec, its tickets and its PR from GitHub again. |
 | `/flow clear` | Forgets the spec, the agents and the stage. |
+
+### Settings
+
+| Setting | Default | What it does |
+| --- | --- | --- |
+| `slots` | `0` | How many implementers may run at once, drawn as the slot meter. `0` reads the cap from the implement skill's text (`3 slots`), or draws none when the skill states none. |
+
+Change it in `/config`, where it is one of the mod's rows.
 
 In the pane, `r` refreshes and `c` clears. The pane opens by itself when a flow skill runs, as a sidebar from 144 terminal columns; below that, open it with `/flow`. It also refreshes every minute and whenever an implementer or a merger finishes.
 

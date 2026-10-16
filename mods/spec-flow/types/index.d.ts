@@ -37,6 +37,8 @@ export type Flow = {
   spec: { number: number; title: string } | null
   pr: number | null
   integration: IntegrationPr | null
+  /** The cap on parallel implementers the running skill states, if it states one. */
+  slotCap: number | null
   tickets: Ticket[]
   agents: AgentRow[]
   error: string | null

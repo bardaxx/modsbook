@@ -7,5 +7,13 @@
   },
   "repository": "https://github.com/bardaxx/claude-mods",
   "license": "MIT",
+  "userConfig": {
+    "slots": {
+      "type": "number",
+      "title": "Implementer slots",
+      "description": "How many implementers may run at once, drawn as the slot meter. 0 reads the cap from the skill that runs (\"3 slots\"), or draws none.",
+      "default": 0
+    }
+  },
   "types": "./types/index.d.ts"
 }
